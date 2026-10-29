@@ -1,0 +1,23 @@
+# clasp (ID skriptu nepatří do veřejného repa)
+.clasp.json
+.clasprc.json
+
+# Node (kdyby se někdy použil)
+node_modules/
+
+# Exporty a data ze skladu – nikdy necommitovat
+*.xlsx
+*.xls
+*.csv
+
+# Tajné hodnoty
+.env
+*.env
+
+# Systém a editory
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.log

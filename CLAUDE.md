@@ -37,6 +37,8 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
 - Zápisy do tabulky pod `LockService`. Log `Kontroly` se **nikdy nemaže**, záznamy se jen mění/uzavírají se stopou kdo/kdy.
 - Výpadek signálu: záznamy se ukládají do fronty v IndexedDB a odesílají se na pozadí; fronta musí být vidět.
 - Kód piš jednoduše a čitelně, s krátkými komentáři česky. Žádné frameworky bez důvodu; knihovny jen z CDN s pevnou verzí.
+- Při každé změně ve `web/` zvyš `VERZE` v `web/sw.js` i `web/js/verze.js` (jinak čtečky drží starou cache)
+  a nové soubory přidej do seznamu `SOUBORY` v `web/sw.js`.
 - Po každé etapě: aktualizuj `README.md` (jak nasadit / co je hotové) a `docs/CHANGELOG.md`, commitni s popisným
   českým commitem. Push jen se souhlasem vlastníka.
 - Když něco ve specifikaci chybí nebo si odporuje, **zeptej se**, nevymýšlej.
