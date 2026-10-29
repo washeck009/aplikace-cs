@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aplikace CS – maketa Expirace</title>
+<style>
+:root{--bg:#eef1f4;--card:#fff;--ink:#1d2430;--mut:#6b7684;--line:#dde2e8;--pri:#0b5cad;--pri2:#e6f0fa;
+--red:#d63a3a;--redb:#fde8e8;--yel:#c98a00;--yelb:#fff4d6;--grn:#2e8b47;--grnb:#e3f4e8;--gry:#8a94a0;--gryb:#eceff2}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit}
+.topbar{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;padding:10px 16px;background:#263240;color:#fff;font-size:13px}
+.topbar b{margin-right:8px}
+.topbar button{background:#3a4859;color:#fff;border:0;border-radius:6px;padding:6px 12px}
+.topbar button.on{background:var(--pri)}
+.note{font-size:12px;color:#c8d0da}
+/* phone */
+.phone{max-width:420px;margin:16px auto;background:#f6f7f9;border-radius:18px;box-shadow:0 6px 30px rgba(0,0,0,.18);overflow:hidden;min-height:760px;display:flex;flex-direction:column;position:relative}
+@media (max-width:500px){.phone{margin:0;border-radius:0;box-shadow:none;min-height:100vh}}
+.ph-head{background:var(--pri);color:#fff;padding:12px 14px;display:flex;align-items:center;gap:10px}
+.ph-head .t{font-weight:600;flex:1}
+.ph-head button{background:rgba(255,255,255,.15);border:0;color:#fff;border-radius:8px;padding:6px 10px}
+.ph-body{padding:14px;flex:1;overflow:auto}
+.seg{display:flex;background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.seg button{flex:1;border:0;background:none;padding:10px;font-weight:600;color:var(--mut)}
+.seg button.on{background:var(--pri);color:#fff}
+.tile{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:10px;width:100%;text-align:left}
+.tile .ic{font-size:26px;width:40px;text-align:center}
+.tile .tt{font-weight:600;font-size:16px}
+.tile .ss{color:var(--mut);font-size:13px}
+.badge{display:inline-block;min-width:22px;padding:2px 8px;border-radius:12px;background:var(--red);color:#fff;font-size:12px;font-weight:700;margin-left:auto}
+.btn{border:0;border-radius:10px;padding:12px 14px;font-weight:600;background:var(--pri);color:#fff}
+.btn.sec{background:#fff;color:var(--pri);border:1px solid var(--pri)}
+.btn.gry{background:var(--gryb);color:var(--ink)}
+.btn.red{background:var(--red)}
+.btn.grn{background:var(--grn)}
+.btn.block{width:100%}
+.row{display:flex;gap:8px}
+.row>*{flex:1}
+.scan{background:#fff;border:2px dashed var(--pri);border-radius:12px;padding:12px;margin-bottom:12px}
+.scan label{font-size:12px;color:var(--mut);display:block;margin-bottom:4px}
+.scan input{width:100%;padding:12px;border:1px solid var(--line);border-radius:8px;font-size:18px;letter-spacing:.5px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:16px;padding:5px 10px;font-size:12px}
+.chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.loc{font-size:22px;font-weight:700;letter-spacing:.5px}
+.rec{background:#fff;border:1px solid var(--line);border-left:6px solid var(--gry);border-radius:10px;padding:10px 12px;margin-bottom:8px}
+.rec.r{border-left-color:var(--red)}.rec.y{border-left-color:var(--yel)}.rec.g{border-left-color:var(--grn)}.rec.x{border-left-color:#5a0000}
+.rec .nm{font-weight:600}
+.rec .mt{font-size:12px;color:var(--mut);margin-top:2px}
+.rec .acts{display:flex;gap:6px;margin-top:8px}
+.rec .acts button{flex:1;border:1px solid var(--line);background:#fff;border-radius:8px;padding:9px 4px;font-weight:600;font-size:14px}
+.rec .acts .ok.sel{background:var(--grn);color:#fff;border-color:var(--grn)}
+.rec .acts .no.sel{background:var(--red);color:#fff;border-color:var(--red)}
+.rec .acts .ed.sel{background:var(--yel);color:#fff;border-color:var(--yel)}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px}
+.pill.r{background:var(--redb);color:var(--red)}.pill.y{background:var(--yelb);color:var(--yel)}.pill.g{background:var(--grnb);color:var(--grn)}.pill.x{background:#5a0000;color:#fff}.pill.k{background:var(--gryb);color:var(--ink)}
+.h{font-size:13px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 8px}
+.field{margin-bottom:10px}
+.field label{display:block;font-size:12px;color:var(--mut);margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;padding:10px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.big{font-size:26px!important;text-align:center;letter-spacing:3px}
+.foot{padding:12px 14px;background:#fff;border-top:1px solid var(--line);display:flex;gap:8px}
+.foot>*{flex:1}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1d2430;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:99;max-width:90vw}
+.toast.on{opacity:1}
+.modal{position:absolute;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;z-index:50}
+.modal .box{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px}
+.pinpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
+.pinpad button{padding:16px;font-size:22px;border:1px solid var(--line);background:#fff;border-radius:10px}
+.dots{display:flex;justify-content:center;gap:12px;margin:12px 0}
+.dots span{width:14px;height:14px;border-radius:50%;border:2px solid var(--pri)}
+.dots span.f{background:var(--pri)}
+.users button{display:block;width:100%;text-align:left;padding:12px;border:1px solid var(--line);border-radius:10px;background:#fff;margin-bottom:6px}
+.users button.on{border-color:var(--pri);background:var(--pri2)}
+.task{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:8px}
+.task.done{opacity:.55}
+.prog{height:6px;background:var(--gryb);border-radius:4px;overflow:hidden;margin-top:8px}
+.prog i{display:block;height:100%;background:var(--grn)}
+/* PC */
+.pc{display:flex;min-height:calc(100vh - 44px)}
+.side{width:210px;background:#1f2a36;color:#cfd7e0;padding:14px 0;flex-shrink:0}
+.side .lg{font-weight:700;color:#fff;padding:0 16px 14px}
+.side button{display:block;width:100%;text-align:left;background:none;border:0;color:inherit;padding:10px 16px}
+.side button.on{background:#2f3d4d;color:#fff;border-left:3px solid #5aa8ff}
+.main{flex:1;padding:20px 24px;overflow:auto;min-width:0}
+.main h1{font-size:20px;margin:0 0 4px}
+.sub{color:var(--mut);font-size:13px;margin-bottom:16px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+.kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi .v{font-size:26px;font-weight:700}
+.kpi .l{font-size:12px;color:var(--mut)}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.panel h2{font-size:15px;margin:0 0 10px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media (max-width:900px){.grid2{grid-template-columns:1fr}.side{width:150px}}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{color:var(--mut);font-weight:600;font-size:12px;background:#fafbfc}
+.tblw{overflow-x:auto}
+.heat{display:grid;gap:3px}
+.heat .c{height:22px;border-radius:3px;font-size:9px;color:#fff;display:flex;align-items:center;justify-content:center}
+.lgd{display:flex;gap:12px;font-size:12px;color:var(--mut);margin-top:8px;flex-wrap:wrap}
+.lgd i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-2px}
+.tabs{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--mut)}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <b>MAKETA – Aplikace CS / Expirace</b>
+  <button id="mPhone" class="on" onclick="setMode('phone')">📱 Čtečka (skladník)</button>
+  <button id="mPc" onclick="setMode('pc')">💻 PC (vedoucí, manažer, správa)</button>
+  <span class="note">Data jsou smyšlená · nic se neukládá · skener Urovo v režimu klávesnice funguje i tady</span>
+</div>
+<div id="app"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ DATA (smyšlená) ============ */
+const TODAY = new Date(2026,9,29);
+const PODNIKY = {S:{nazev:'Stachema',red:180,yel:360,cil:60}, D:{nazev:'Stavebniny DEK',red:90,yel:180,cil:null}};
+const USERS = [
+  {jm:'Skladník A',role:'skladník'},{jm:'Skladník B',role:'skladník'},{jm:'Skladník C',role:'skladník'},
+  {jm:'Vedoucí 1',role:'vedoucí'},{jm:'Vedoucí 2',role:'vedoucí'},{jm:'Manažer',role:'manažer'},{jm:'Admin',role:'admin'}];
+const ITEMS = {
+ S:[{ean:'8595039311248',cp:'5151016460',n:'Lignofix EMAIL – oranžová 4,5 l'},
+    {ean:'8590738424060',cp:'5151015830',n:'EXIN WASH&CLEAN, báze C, 6 kg'},
+    {ean:'8594024090939',cp:'1111011290',n:'Nestékavý tmel Eprosin T 30, set 415 g'},
+    {ean:'8594024090502',cp:'1143020220',n:'NX500 Vrchní nátěr, bílá, set 535 g'},
+    {ean:'8590738400011',cp:'5151019750',n:'LN400 IMPRANAL PROFI dub, 5 l'},
+    {ean:'8590738400028',cp:'5151017700',n:'FO800 Silikonová omítka, báze C, 2 mm, 25 kg'}],
+ D:[{ean:'8594000111223',cp:'2210004410',n:'Penetrace hloubková 5 l'},
+    {ean:'8594000111230',cp:'2210004420',n:'Lepidlo na obklady flexibilní 25 kg'},
+    {ean:'8594000111247',cp:'2210004430',n:'Silikon sanitární bílý 310 ml'},
+    {ean:'8594000111254',cp:'2210004440',n:'PU pěna montážní 750 ml'},
+    {ean:'8594000111261',cp:'2210004450',n:'Hydroizolační stěrka 5 kg'}]};
+const LOKACE = {S:['H2-P-37-1','H2-P-42-1','H2-P-45-1','H2-J-07-1','H2-J-07-2','H2-J-08-1'],
+                D:['H1-A-12-2','H1-A-13-1','H1-B-04-3','P-03-14-1','P-03-15-2','P-05-02-1']};
+let RID=100;
+let RECS = [
+ {id:1,p:'S',lok:'H2-P-37-1',ean:'8595039311248',exp:'11/28',ks:12,stav:'Na lokaci',over:'2026-10-01',kdo:'Skladník A'},
+ {id:2,p:'S',lok:'H2-P-37-1',ean:'8595039311248',exp:'03/27',ks:4,stav:'Na lokaci',over:'2026-10-01',kdo:'Skladník A'},
+ {id:3,p:'S',lok:'H2-P-37-1',ean:'8590738424060',exp:'01/27',ks:null,stav:'Na lokaci',over:'2026-09-12',kdo:'Skladník B'},
+ {id:4,p:'S',lok:'H2-P-42-1',ean:'8590738400011',exp:'12/26',ks:3,stav:'Na lokaci',over:'2026-08-20',kdo:'Skladník A'},
+ {id:5,p:'S',lok:'H2-P-45-1',ean:'8590738424060',exp:'01/29',ks:20,stav:'Na lokaci',over:'2026-07-03',kdo:'Skladník A'},
+ {id:6,p:'S',lok:'H2-J-07-1',ean:'8590738400028',exp:'09/26',ks:2,stav:'Na lokaci',over:'2026-06-30',kdo:'Skladník B'},
+ {id:7,p:'S',lok:'H2-J-07-2',ean:'8594024090502',exp:'06/27',ks:8,stav:'Na lokaci',over:'2026-10-20',kdo:'Skladník C'},
+ {id:8,p:'S',lok:'H2-J-08-1',ean:'8590738400011',exp:'05/27',ks:6,stav:'Na lokaci',over:'2026-10-22',kdo:'Skladník A'},
+ {id:9,p:'D',lok:'H1-A-12-2',ean:'8594000111223',exp:'01/27',ks:30,stav:'Na lokaci',over:'2026-10-15',kdo:'Skladník B'},
+ {id:10,p:'D',lok:'H1-A-12-2',ean:'8594000111223',exp:'08/27',ks:40,stav:'Na lokaci',over:'2026-10-15',kdo:'Skladník B'},
+ {id:11,p:'D',lok:'P-03-14-1',ean:'8594000111247',exp:'02/27',ks:48,stav:'Na lokaci',over:'2026-09-02',kdo:'Skladník C'},
+ {id:12,p:'D',lok:'P-03-15-2',ean:'8594000111254',exp:'11/26',ks:12,stav:'Na lokaci',over:'2026-08-11',kdo:'Skladník C'},
+ {id:13,p:'D',lok:'H1-B-04-3',ean:'8594000111261',exp:'10/26',ks:5,stav:'Na lokaci',over:'2026-07-19',kdo:'Skladník B'},
+ {id:14,p:'D',lok:'H1-A-13-1',ean:'8594000111230',exp:'03/27',ks:25,stav:'Na lokaci',over:'2026-10-27',kdo:'Skladník A'}];
+let TASKS = [
+ {id:1,p:'S',typ:'ruční',od:'Vedoucí 1',komu:'Skladník A',txt:'Zkontroluj řadu H2-P (37–45)',lok:['H2-P-37-1','H2-P-42-1','H2-P-45-1'],done:[],term:'31. 10.'},
+ {id:2,p:'S',typ:'plánovač',od:'Plánovač',komu:'kdokoliv',txt:'Červené pásmo – ověřit, že zboží je na lokaci',lok:['H2-J-07-1'],done:[],term:'dnes'},
+ {id:3,p:'D',typ:'plánovač',od:'Plánovač',komu:'kdokoliv',txt:'Lokace nekontrolované déle než 60 dní',lok:['H1-B-04-3','P-03-15-2'],done:[],term:'tento týden'},
+ {id:4,p:'D',typ:'ruční',od:'Vedoucí 2',komu:'Skladník A',txt:'Ověř penetraci – dvě expirace na jedné lokaci (FEFO)',lok:['H1-A-12-2'],done:[],term:'30. 10.'}];
+let COUNT_TODAY = new Set(); // lokace započtené dnes přihlášenému
+
+/* ============ POMOCNÉ ============ */
+const $=s=>document.querySelector(s);
+const item=(p,ean)=>ITEMS[p].find(i=>i.ean===ean);
+function daysLeft(exp){const [m,r]=exp.split('/').map(Number);const end=new Date(2000+r,m,0);return Math.round((end-TODAY)/864e5);}
+function band(p,exp){const d=daysLeft(exp),P=PODNIKY[p];if(d<0)return'x';if(d<=P.red)return'r';if(d<=P.yel)return'y';return'g';}
+const BANDTXT={x:'Expirováno',r:'Expiruje brzy',y:'Pozor',g:'OK'};
+function pill(p,exp){const b=band(p,exp);return `<span class="pill ${b}">${BANDTXT[b]} · ${daysLeft(exp)} d</span>`;}
+function fmtD(s){const d=new Date(s);return d.getDate()+'. '+(d.getMonth()+1)+'.';}
+function daysAgo(s){return Math.round((TODAY-new Date(s))/864e5);}
+function toast(t){const el=$('#toast');el.textContent=t;el.classList.add('on');clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),2400);}
+const isLoc=c=>/^[HP]\d?-/.test(c.toUpperCase());
+
+/* ============ STAV ============ */
+let mode='phone';
+let S={screen:'login',user:null,pin:'',podnik:'S',lok:null,marks:{},taskId:null,filter:'r',newEan:null,editId:null,modal:null};
+let PC={view:'prehled',podnik:'S'};
+function setMode(m){mode=m;$('#mPhone').classList.toggle('on',m==='phone');$('#mPc').classList.toggle('on',m==='pc');render();}
+function go(scr,extra){Object.assign(S,{screen:scr,modal:null},extra||{});render();}
+
+/* ============ RENDER ČTEČKA ============ */
+function render(){ if(mode==='pc')return renderPC(); $('#app').innerHTML=`<div class="phone">${phone()}</div>`; afterRender(); }
+function head(t,back){return `<div class="ph-head">${back?`<button onclick="${back}">←</button>`:''}<div class="t">${t}</div>${S.user?`<button onclick="logout()">${S.user} ⎋</button>`:''}</div>`;}
+function phone(){
+ switch(S.screen){
+ case 'login': return loginScr();
+ case 'home': return homeScr();
+ case 'scanLoc': return scanLocScr();
+ case 'loc': return locScr();
+ case 'add': return addScr();
+ case 'edit': return editScr();
+ case 'tasks': return tasksScr();
+ case 'soon': return soonScr();
+ }}
+function loginScr(){
+ return head('Aplikace CS – přihlášení')+`<div class="ph-body">
+ <div class="h">Kdo jsi?</div>
+ <div class="users">${USERS.map(u=>`<button class="${S.pickUser===u.jm?'on':''}" onclick="S.pickUser='${u.jm}';S.pin='';render()">${u.jm} <span class="hint">· ${u.role}</span></button>`).join('')}</div>
+ ${S.pickUser?`<div class="h">PIN</div><div class="dots">${[0,1,2,3].map(i=>`<span class="${i<S.pin.length?'f':''}"></span>`).join('')}</div>
+ <div class="pinpad">${[1,2,3,4,5,6,7,8,9,'⌫',0,'OK'].map(k=>`<button onclick="pinKey('${k}')">${k}</button>`).join('')}</div>
+ <p class="hint">Maketa: platí jakýkoliv 4místný PIN. Přihlášení vydrží do konce směny.</p>`:''}
+ </div>`;}
+function pinKey(k){if(k==='⌫')S.pin=S.pin.slice(0,-1);else if(k==='OK'){if(S.pin.length===4){S.user=S.pickUser;go('home');return;}}else if(S.pin.length<4)S.pin+=k;
+ if(S.pin.length===4&&k!=='OK'){S.user=S.pickUser;go('home');return;}render();}
+function logout(){S.user=null;S.pickUser=null;S.pin='';go('login');}
+function podSeg(){return `<div class="seg">${Object.keys(PODNIKY).map(k=>`<button class="${S.podnik===k?'on':''}" onclick="S.podnik='${k}';render()">${PODNIKY[k].nazev}</button>`).join('')}</div>`;}
+function myTasks(){return TASKS.filter(t=>t.p===S.podnik&&(t.komu===S.user||t.komu==='kdokoliv')&&t.done.length<t.lok.length);}
+function homeScr(){
+ const soon=RECS.filter(r=>r.p===S.podnik&&r.stav==='Na lokaci'&&['r','x'].includes(band(r.p,r.exp))).length;
+ return head('Expirace')+`<div class="ph-body">${podSeg()}
+ <button class="tile" onclick="go('scanLoc',{taskId:null})"><span class="ic">📷</span><div><div class="tt">Kontrola lokace</div><div class="ss">Naskenuj lokaci a ověř zboží</div></div></button>
+ <button class="tile" onclick="go('tasks')"><span class="ic">📋</span><div><div class="tt">Moje úkoly</div><div class="ss">Od vedoucích a z plánovače</div></div><span class="badge">${myTasks().length}</span></button>
+ <button class="tile" onclick="go('soon')"><span class="ic">⏳</span><div><div class="tt">Blíží se expirace</div><div class="ss">Seřazeno podle data, pro obchůzku</div></div><span class="badge">${soon}</span></button>
+ <div class="h">Dnes</div>
+ <div class="task">Zkontrolované lokace dnes: <b>${COUNT_TODAY.size}</b>${PODNIKY[S.podnik].cil?` · cíl týdne ${PODNIKY[S.podnik].cil}`:''}
+ <div class="hint">Tatáž lokace se za den počítá jen jednou.</div></div>
+ <div class="h">Prvky v PC verzi</div><p class="hint">Přehledy, zadávání úkolů, záznamy a správa – přepni nahoře na „PC“.</p>
+ </div>`;}
+function scanBox(label,ph,codes,handler){
+ return `<div class="scan"><label>${label}</label>
+ <input id="scanIn" placeholder="${ph}" autocomplete="off" onkeydown="if(event.key==='Enter'){${handler}(this.value.trim());}">
+ <div class="chips"><span class="hint" style="width:100%">Simulace skenu (v maketě):</span>${codes.map(c=>`<button class="chip" onclick="${handler}('${c}')">${c}</button>`).join('')}</div></div>`;}
+function scanLocScr(){
+ const t=S.taskId?TASKS.find(x=>x.id===S.taskId):null;
+ const codes=t?t.lok.filter(l=>!t.done.includes(l)):LOKACE[S.podnik];
+ return head('Kontrola – '+PODNIKY[S.podnik].nazev,"go('home')")+`<div class="ph-body">
+ ${t?`<div class="task"><b>Úkol:</b> ${t.txt}<div class="prog"><i style="width:${100*t.done.length/t.lok.length}%"></i></div><div class="hint">${t.done.length} z ${t.lok.length} lokací</div></div>`:''}
+ ${scanBox('1) Naskenuj štítek lokace','např. H2-P-37-1',codes,'onLoc')}
+ <p class="hint">Hardwarový skener „napíše“ kód do pole a odešle Enter. Kamera: tlačítko 📷 vedle pole (v ostré verzi).</p></div>`;}
+function onLoc(c){c=c.toUpperCase();if(!c)return;if(!isLoc(c)){toast('Tohle není lokace – naskenuj štítek lokace');return;}
+ if(!LOKACE[S.podnik].includes(c)){LOKACE[S.podnik].push(c);toast('Nová lokace – uložena s příznakem k ověření');}
+ S.marks={};go('loc',{lok:c});}
+function locRecs(){return RECS.filter(r=>r.p===S.podnik&&r.lok===S.lok&&r.stav==='Na lokaci');}
+function locScr(){
+ const rs=locRecs();
+ return head('Lokace',"go('scanLoc')")+`<div class="ph-body" style="position:relative">
+ <div class="loc">${S.lok}</div><div class="hint">${PODNIKY[S.podnik].nazev} · evidováno ${rs.length} ${rs.length===1?'záznam':'záznamy'}</div>
+ <div class="h">Co tu evidujeme – rozhodni u každého řádku</div>
+ ${rs.length?rs.map(r=>{const it=item(r.p,r.ean)||{n:'⚠ Neznámá položka',cp:r.cp||'?'};const m=S.marks[r.id];
+ return `<div class="rec ${band(r.p,r.exp)}"><div class="nm">${it.n}</div>
+ <div class="mt">Exp. <b>${r.exp}</b> · ${pill(r.p,r.exp)} · ${r.ks?r.ks+' ks':'ks neuvedeno'} · ověřeno ${fmtD(r.over)} (${r.kdo})${r.kdopl?' · <span class="pill k">k doplnění</span>':''}</div>
+ ${r.pozn?`<div class="mt">📝 ${r.pozn}</div>`:''}
+ <div class="acts"><button class="ok ${m==='ok'?'sel':''}" onclick="mark(${r.id},'ok')">✓ Je tu</button>
+ <button class="no ${m==='no'?'sel':''}" onclick="mark(${r.id},'no')">✗ Není tu</button>
+ <button class="ed ${m==='ed'?'sel':''}" onclick="go('edit',{editId:${r.id}})">✎ Upravit</button></div></div>`}).join('')
+ :`<p class="hint">Na lokaci zatím nic neevidujeme.</p>`}
+ <div class="h">Našel jsi tu další zboží?</div>
+ ${scanBox('2) Naskenuj EAN nového zboží','EAN',ITEMS[S.podnik].slice(0,3).map(i=>i.ean).concat(['8590000999999']),'onEan')}
+ <p class="hint">8590000999999 = neznámý EAN (ukázka ručního zadání čísla položky).</p>
+ </div>
+ <div class="foot"><button class="btn gry" onclick="emptyLoc()">Bez expiračního zboží</button><button class="btn grn" onclick="finishLoc()">✔ Lokace hotová</button></div>
+ ${S.modal==='untouched'?`<div class="modal"><div class="box"><b>Neoznačené řádky: ${rs.filter(r=>!S.marks[r.id]).length}</b>
+ <p class="hint">U každého řádku je potřeba rozhodnout. Můžeš zbytek potvrdit najednou.</p>
+ <div class="row"><button class="btn sec" onclick="S.modal=null;render()">Zpět</button><button class="btn grn" onclick="allRestOk()">Vše ostatní je tu</button></div></div></div>`:''}`;}
+function mark(id,v){S.marks[id]=S.marks[id]===v?undefined:v;render();}
+function allRestOk(){locRecs().forEach(r=>{if(!S.marks[r.id])S.marks[r.id]='ok';});S.modal=null;finishLoc();}
+function finishLoc(){const rs=locRecs();if(rs.some(r=>!S.marks[r.id])){S.modal='untouched';render();return;}
+ let ok=0,no=0;rs.forEach(r=>{if(S.marks[r.id]==='no'){r.stav='Není na lokaci';no++;}else{r.over='2026-10-29';r.kdo=S.user;ok++;}});
+ countLoc();toast(`Uloženo: ${ok}× je tu, ${no}× není tu. Lokace započtena (dnes ${COUNT_TODAY.size}).`);afterLocDone();}
+function emptyLoc(){const rs=locRecs();if(rs.length&&!confirmEmpty)return askEmpty();rs.forEach(r=>r.stav='Není na lokaci');countLoc();toast(`Lokace bez expiračního zboží – započtena (dnes ${COUNT_TODAY.size}).`);confirmEmpty=false;afterLocDone();}
+let confirmEmpty=false;function askEmpty(){toast('Na lokaci jsou evidované záznamy – ťukni znovu pro potvrzení, že tu nic není.');confirmEmpty=true;}
+function countLoc(){const before=COUNT_TODAY.size;COUNT_TODAY.add(S.lok);if(COUNT_TODAY.size===before)setTimeout(()=>toast('Lokace už byla dnes započtena – počítá se jen 1×'),2500);}
+function afterLocDone(){const t=S.taskId?TASKS.find(x=>x.id===S.taskId):null;if(t&&t.lok.includes(S.lok)&&!t.done.includes(S.lok))t.done.push(S.lok);
+ TASKS.forEach(x=>{if(x.p===S.podnik&&x.lok.includes(S.lok)&&!x.done.includes(S.lok))x.done.push(S.lok);});
+ if(t&&t.done.length===t.lok.length){setTimeout(()=>toast('Úkol splněn ✔'),2600);go('tasks');}else go('scanLoc');}
+function onEan(c){if(!c)return;if(isLoc(c)){toast('Naskenoval jsi lokaci – zboží se skenuje EAN kódem');return;}S.newEan=c;go('add');}
+function expInput(id){return `<input id="${id}" class="big" inputmode="numeric" placeholder="MM/RR" maxlength="5" oninput="fmtExp(this)">`;}
+function fmtExp(el){let v=el.value.replace(/\D/g,'').slice(0,4);if(v.length>2)v=v.slice(0,2)+'/'+v.slice(2);el.value=v;}
+function validExp(v){if(!/^\d\d\/\d\d$/.test(v))return false;const m=+v.slice(0,2);return m>=1&&m<=12;}
+function addScr(){
+ const it=item(S.podnik,S.newEan);
+ return head('Nové zboží na '+S.lok,"go('loc')")+`<div class="ph-body">
+ ${it?`<div class="task"><b>${it.n}</b><div class="hint">EAN ${S.newEan} · č. pol. ${it.cp}</div></div>`
+ :`<div class="task" style="border-color:var(--yel)"><b>⚠ Neznámý EAN ${S.newEan}</b><div class="hint">Zadej číslo položky z etikety. Záznam se uloží s příznakem „k doplnění“, číselník doplní správce.</div></div>
+ <div class="field"><label>Číslo položky</label><input id="cpIn" inputmode="numeric"></div>`}
+ <div class="field"><label>Expirace (měsíc/rok)</label>${expInput('expIn')}</div>
+ <div class="field"><label>Počet kusů (nepovinné)</label><input id="ksIn" inputmode="numeric"></div>
+ <div class="field"><label>Poznámka (nepovinné)</label><input id="pzIn"></div>
+ <button class="btn sec block" onclick="toast('V ostré verzi se otevře fotoaparát')">📷 Přidat fotku (nepovinné)</button>
+ </div><div class="foot"><button class="btn gry" onclick="go('loc')">Zrušit</button><button class="btn" onclick="saveNew()">Uložit</button></div>`;}
+function saveNew(){const exp=$('#expIn').value;if(!validExp(exp)){toast('Zadej expiraci ve tvaru MM/RR');return;}
+ const it=item(S.podnik,S.newEan);let cp=it?it.cp:($('#cpIn').value||'?');
+ if(RECS.some(r=>r.p===S.podnik&&r.lok===S.lok&&r.ean===S.newEan&&r.exp===exp&&r.stav==='Na lokaci')){toast('Tento záznam (lokace + EAN + expirace) už existuje – označ ho ✓');go('loc');return;}
+ const id=++RID;RECS.push({id,p:S.podnik,lok:S.lok,ean:S.newEan,cp,exp,ks:+$('#ksIn').value||null,stav:'Na lokaci',over:'2026-10-29',kdo:S.user,pozn:$('#pzIn').value,kdopl:!it});
+ if(!it)ITEMS[S.podnik].push({ean:S.newEan,cp,n:'(k doplnění) položka '+cp});
+ S.marks[id]='ok';toast('Přidáno a rovnou označeno ✓');go('loc');}
+function editScr(){const r=RECS.find(x=>x.id===S.editId);const it=item(r.p,r.ean)||{n:'?'};
+ return head('Upravit záznam',"go('loc')")+`<div class="ph-body">
+ <div class="task"><b>${it.n}</b><div class="hint">${r.lok} · EAN ${r.ean}</div></div>
+ <div class="field"><label>Expirace (oprava překlepu)</label>${expInput('expIn')}</div>
+ <div class="field"><label>Počet kusů</label><input id="ksIn" inputmode="numeric" value="${r.ks||''}"></div>
+ <div class="field"><label>Poznámka</label><input id="pzIn" value="${r.pozn||''}"></div>
+ <div class="field"><label>Stav</label><select id="stIn"><option>Na lokaci</option><option>Vydáno</option><option>Zlikvidováno</option></select></div>
+ <button class="btn sec block" onclick="toast('V ostré verzi se otevře fotoaparát')">📷 Přidat fotku</button>
+ <p class="hint">Každá změna se ukládá se stopou kdo / kdy / co.</p>
+ </div><div class="foot"><button class="btn gry" onclick="go('loc')">Zrušit</button><button class="btn" onclick="saveEdit()">Uložit</button></div>`;}
+function saveEdit(){const r=RECS.find(x=>x.id===S.editId);const e=$('#expIn').value;if(e&&!validExp(e)){toast('Expirace ve tvaru MM/RR');return;}
+ if(e)r.exp=e;r.ks=+$('#ksIn').value||null;r.pozn=$('#pzIn').value;const st=$('#stIn').value;
+ if(st!=='Na lokaci'){r.stav=st;delete S.marks[r.id];toast('Označeno: '+st);}else{r.over='2026-10-29';r.kdo=S.user;S.marks[r.id]='ed';toast('Upraveno a ověřeno');}go('loc');}
+function tasksScr(){const ts=TASKS.filter(t=>t.p===S.podnik&&(t.komu===S.user||t.komu==='kdokoliv'));
+ return head('Moje úkoly',"go('home')")+`<div class="ph-body">${podSeg()}
+ ${ts.length?ts.map(t=>{const d=t.done.length===t.lok.length;return `<div class="task ${d?'done':''}">
+ <div style="display:flex;justify-content:space-between;gap:8px"><b>${t.txt}</b><span class="pill ${t.typ==='plánovač'?'k':'y'}">${t.typ}</span></div>
+ <div class="hint">Zadal: ${t.od} · pro: ${t.komu} · termín ${t.term}</div>
+ <div class="hint">Lokace (podle trasy): ${t.lok.slice().sort().map(l=>t.done.includes(l)?'<s>'+l+'</s>':'<b>'+l+'</b>').join(', ')}</div>
+ <div class="prog"><i style="width:${100*t.done.length/t.lok.length}%"></i></div>
+ ${d?'<div class="hint">✔ Splněno</div>':`<button class="btn block" style="margin-top:8px" onclick="go('scanLoc',{taskId:${t.id}})">Začít / pokračovat</button>`}</div>`}).join('')
+ :'<p class="hint">Žádné úkoly.</p>'}</div>`;}
+function soonScr(){
+ const f=S.filter;let rs=RECS.filter(r=>r.p===S.podnik&&r.stav==='Na lokaci');
+ if(f!=='all')rs=rs.filter(r=>f==='r'?['r','x'].includes(band(r.p,r.exp)):band(r.p,r.exp)===f);
+ rs.sort((a,b)=>daysLeft(a.exp)-daysLeft(b.exp));
+ return head('Blíží se expirace',"go('home')")+`<div class="ph-body">${podSeg()}
+ <div class="chips" style="margin-bottom:10px">${[['r','Červené + expirované'],['y','Žluté'],['all','Vše']].map(([k,l])=>`<button class="chip ${f===k?'on':''}" onclick="S.filter='${k}';render()">${l}</button>`).join('')}</div>
+ <div class="hint" style="margin-bottom:8px">Pásma ${PODNIKY[S.podnik].nazev}: červená ≤ ${PODNIKY[S.podnik].red} dní, žlutá ≤ ${PODNIKY[S.podnik].yel} dní.</div>
+ ${rs.map(r=>{const it=item(r.p,r.ean)||{n:'?'};return `<div class="rec ${band(r.p,r.exp)}"><div class="nm">${it.n}</div>
+ <div class="mt"><b>${r.lok}</b> · exp. <b>${r.exp}</b> · ${pill(r.p,r.exp)} · ověřeno před ${daysAgo(r.over)} dny</div>
+ <div class="acts"><button onclick="S.marks={};go('loc',{lok:'${r.lok}',taskId:null})">➜ Na lokaci</button>
+ <button onclick="setStav(${r.id},'Vydáno')">Vydáno</button><button onclick="setStav(${r.id},'Zlikvidováno')">Zlikvidováno</button></div></div>`}).join('')||'<p class="hint">Nic.</p>'}
+ </div>`;}
+function setStav(id,st){const r=RECS.find(x=>x.id===id);r.stav=st;toast(st+' – uloženo ('+S.user+')');render();}
+function afterRender(){const i=$('#scanIn');if(i)i.focus();}
+
+/* ============ PC ============ */
+function renderPC(){
+ const v=PC.view;
+ $('#app').innerHTML=`<div class="pc"><div class="side"><div class="lg">Aplikace CS<br><span class="hint" style="color:#9fb0c2">Expirace</span></div>
+ ${[['prehled','📊 Přehled'],['ukoly','📋 Úkoly'],['zaznamy','🗂 Záznamy'],['sprava','⚙ Správa (admin)']].map(([k,l])=>`<button class="${v===k?'on':''}" onclick="PC.view='${k}';render()">${l}</button>`).join('')}
+ <div style="padding:16px" class="hint">Přihlášen: Admin (admin)<br>Vedoucí a manažer vidí totéž kromě Správy.</div></div>
+ <div class="main"><div class="tabs">${Object.keys(PODNIKY).map(k=>`<button class="chip ${PC.podnik===k?'on':''}" onclick="PC.podnik='${k}';render()">${PODNIKY[k].nazev}</button>`).join('')}</div>
+ ${({prehled:pcPrehled,ukoly:pcUkoly,zaznamy:pcZaznamy,sprava:pcSprava})[v]()}</div></div>`;}
+function pcPrehled(){
+ const p=PC.podnik,rs=RECS.filter(r=>r.p===p&&r.stav==='Na lokaci');
+ const red=rs.filter(r=>band(p,r.exp)==='r').length,exp=rs.filter(r=>band(p,r.exp)==='x').length,yel=rs.filter(r=>band(p,r.exp)==='y').length;
+ const kdopl=RECS.filter(r=>r.p===p&&r.kdopl).length;
+ // heatmapa – smyšlené řady
+ const rows=p==='S'?['H2-H','H2-J','H2-K','H2-P','H2-R']:['H1-A','H1-B','H1-C','P-03','P-05'];
+ const col=d=>d==null?'#c9d0d8':d<=30?'#2e8b47':d<=60?'#8bc34a':d<=90?'#e0a800':'#d63a3a';
+ let seed=p==='S'?7:3;const rnd=()=>{seed=(seed*9301+49297)%233280;return seed/233280;};
+ const heat=rows.map(rw=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px"><div style="width:48px;font-size:12px;font-weight:600">${rw}</div>
+ <div class="heat" style="grid-template-columns:repeat(24,1fr);flex:1">${Array.from({length:24},(_,i)=>{const x=rnd();const d=x<.12?null:Math.round(x*140);return `<div class="c" title="${rw}-${String(i+1).padStart(2,'0')}: ${d==null?'nikdy':'před '+d+' dny'}" style="background:${col(d)}"></div>`}).join('')}</div></div>`).join('');
+ const lidi=['Skladník A','Skladník B','Skladník C'],tydny=['T41','T42','T43','T44'];
+ const cil=PODNIKY[p].cil;
+ // FEFO
+ const fefo=[];const byItem={};rs.forEach(r=>{(byItem[r.ean]=byItem[r.ean]||[]).push(r);});
+ Object.values(byItem).forEach(a=>{if(a.length>1){a.sort((x,y)=>daysLeft(x.exp)-daysLeft(y.exp));fefo.push(a);}});
+ return `<h1>Přehled – ${PODNIKY[p].nazev}</h1><div class="sub">Stav k 29. 10. 2026 · pásma: červená ≤ ${PODNIKY[p].red} d, žlutá ≤ ${PODNIKY[p].yel} d · poslední import stavu lokací 27. 10.</div>
+ <div class="kpis">
+ <div class="kpi"><div class="v">68 %</div><div class="l">Pokrytí lokací za 30 dní</div></div>
+ <div class="kpi"><div class="v">91 %</div><div class="l">Pokrytí lokací za 90 dní</div></div>
+ <div class="kpi"><div class="v">${p==='S'?47:23}</div><div class="l">Kontrol (lokací) tento týden${cil?' · cíl '+cil:''}</div></div>
+ <div class="kpi"><div class="v" style="color:var(--red)">${red}</div><div class="l">Záznamů v červeném pásmu</div></div>
+ <div class="kpi"><div class="v" style="color:#5a0000">${exp}</div><div class="l">Expirováno a stále na skladě</div></div>
+ <div class="kpi"><div class="v">${p==='S'?14:9}</div><div class="l">Zboží na skladě bez kontroly (z importu ERP)</div></div>
+ <div class="kpi"><div class="v">${kdopl}</div><div class="l">Položek „k doplnění“</div></div></div>
+ <div class="panel"><h2>Mapa pokrytí – kdy byla lokace naposledy zkontrolovaná</h2>${heat}
+ <div class="lgd"><span><i style="background:#2e8b47"></i>≤ 30 dní</span><span><i style="background:#8bc34a"></i>31–60</span><span><i style="background:#e0a800"></i>61–90</span><span><i style="background:#d63a3a"></i>> 90</span><span><i style="background:#c9d0d8"></i>nikdy</span><span>· najetím myši detail lokace</span></div></div>
+ <div class="grid2">
+ <div class="panel"><h2>Kontroly po lidech a týdnech (lokace, max 1× denně)</h2><div class="tblw"><table><tr><th>Pracovník</th>${tydny.map(t=>`<th>${t}</th>`).join('')}</tr>
+ ${lidi.map((l,i)=>`<tr><td>${l}</td>${tydny.map((t,j)=>{const v=[[22,30,18,25],[12,9,20,14],[5,11,8,8]][i][j];return `<td>${v}</td>`}).join('')}</tr>`).join('')}
+ <tr><th>Celkem</th>${tydny.map((t,j)=>{const v=[39,50,46,47][j];return `<th style="color:${cil&&v<cil?'var(--red)':'var(--grn)'}">${v}${cil?' / '+cil:''}</th>`}).join('')}</tr></table></div>
+ <div class="hint">Podklad pro prémie (export do Excelu).</div></div>
+ <div class="panel"><h2>Zboží podle pásem</h2><table><tr><th>Pásmo</th><th>Záznamů</th></tr>
+ <tr><td><span class="pill x">Expirováno</span></td><td>${exp}</td></tr><tr><td><span class="pill r">Expiruje brzy</span></td><td>${red}</td></tr>
+ <tr><td><span class="pill y">Pozor</span></td><td>${yel}</td></tr><tr><td><span class="pill g">OK</span></td><td>${rs.length-exp-red-yel}</td></tr></table>
+ <h2 style="margin-top:14px">FEFO – stejná položka na více lokacích / s více expiracemi</h2>
+ ${fefo.length?fefo.map(a=>`<div class="hint" style="color:var(--ink)">• <b>${(item(p,a[0].ean)||{}).n}</b>: vychystávat nejdřív z <b>${a[0].lok}</b> (exp. ${a[0].exp}), pak ${a.slice(1).map(r=>r.lok+' ('+r.exp+')').join(', ')}</div>`).join(''):'<div class="hint">Bez upozornění.</div>'}</div></div>
+ <div class="panel"><h2>Týdenní report zboží před expirací</h2><div class="hint">Odchází automaticky každé pondělí 7:00 · příjemci: ${p==='S'?'odpovědní za Stachemu':'odpovědní za Stavebniny DEK'} · příloha Excel (červené + expirované).</div>
+ <button class="btn sec" style="margin-top:8px" onclick="toast('V ostré verzi: náhled e-mailu / odeslat teď')">Náhled reportu</button></div>`;}
+function pcUkoly(){const p=PC.podnik;
+ return `<h1>Úkoly – ${PODNIKY[p].nazev}</h1><div class="sub">Ruční úkoly zadávají vedoucí, manažer a správce. Plánovač přidává úkoly každé ráno sám.</div>
+ <div class="grid2"><div class="panel"><h2>Nový úkol</h2>
+ <div class="field"><label>Pro koho</label><select><option>kdokoliv</option>${USERS.filter(u=>u.role==='skladník').map(u=>`<option>${u.jm}</option>`).join('')}</select></div>
+ <div class="field"><label>Lokace – jedna, víc oddělených čárkou, nebo rozsah</label><input placeholder="např. H2-J-07-1 až H2-J-20-4"></div>
+ <div class="field"><label>Jen konkrétní zboží (nepovinné)</label><input placeholder="EAN nebo číslo položky"></div>
+ <div class="field"><label>Termín</label><input type="date" value="2026-10-31"></div>
+ <div class="field"><label>Poznámka pro skladníka</label><textarea rows="2"></textarea></div>
+ <button class="btn" onclick="toast('Úkol uložen – skladník ho uvidí ve čtečce')">Zadat úkol</button></div>
+ <div class="panel"><h2>Pravidla plánovače</h2><table>
+ <tr><th>Pravidlo</th><th>Hodnota</th></tr>
+ <tr><td>Lokace nekontrolovaná déle než</td><td>60 dní</td></tr>
+ <tr><td>Červené pásmo ověřit alespoň</td><td>1× za 30 dní</td></tr>
+ <tr><td>Zboží na skladě bez kontroly (import ERP)</td><td>ano</td></tr>
+ <tr><td>Max. lokací v jednom denním úkolu</td><td>20</td></tr></table><div class="hint">Upravuje správce v Nastavení.</div></div></div>
+ <div class="panel"><h2>Přehled úkolů</h2><div class="tblw"><table><tr><th>Úkol</th><th>Typ</th><th>Zadal</th><th>Pro</th><th>Termín</th><th>Hotovo</th></tr>
+ ${TASKS.filter(t=>t.p===p).map(t=>`<tr><td>${t.txt}</td><td>${t.typ}</td><td>${t.od}</td><td>${t.komu}</td><td>${t.term}</td><td>${t.done.length} / ${t.lok.length}</td></tr>`).join('')}</table></div></div>`;}
+function pcZaznamy(){const p=PC.podnik;const q=(PC.q||'').toLowerCase();
+ const rs=RECS.filter(r=>r.p===p).filter(r=>!q||(r.lok+' '+r.ean+' '+((item(p,r.ean)||{}).n||'')).toLowerCase().includes(q)).sort((a,b)=>daysLeft(a.exp)-daysLeft(b.exp));
+ return `<h1>Záznamy – ${PODNIKY[p].nazev}</h1><div class="sub">Aktuální stav. Celá historie je v logu kontrol.</div>
+ <div class="row" style="max-width:600px;margin-bottom:10px"><input style="padding:9px;border:1px solid var(--line);border-radius:8px" placeholder="Hledat lokaci, EAN, název…" value="${PC.q||''}" oninput="PC.q=this.value;render();setTimeout(()=>{const i=document.querySelector('.main input');i.focus();i.setSelectionRange(99,99)})">
+ <button class="btn sec" style="flex:0 0 auto" onclick="toast('Stáhne se Excel s aktuálním filtrem')">⬇ Export do Excelu</button></div>
+ <div class="panel tblw"><table><tr><th>Lokace</th><th>Č. pol.</th><th>Název</th><th>EAN</th><th>Exp.</th><th>Pásmo</th><th>Ks</th><th>Stav</th><th>Ověřeno</th><th>Kdo</th><th>Pozn.</th></tr>
+ ${rs.map(r=>{const it=item(p,r.ean)||{n:'?',cp:r.cp};return `<tr><td>${r.lok}</td><td>${it.cp}</td><td>${it.n}${r.kdopl?' <span class="pill k">k doplnění</span>':''}</td><td>${r.ean}</td><td>${r.exp}</td><td>${r.stav==='Na lokaci'?pill(p,r.exp):'—'}</td><td>${r.ks||''}</td><td>${r.stav}</td><td>${fmtD(r.over)}</td><td>${r.kdo}</td><td>${r.pozn||''}</td></tr>`}).join('')}</table></div>`;}
+function pcSprava(){const p=PC.podnik;
+ return `<h1>Správa</h1><div class="sub">Vidí jen správce (Admin).</div>
+ <div class="grid2"><div class="panel"><h2>Uživatelé</h2><table><tr><th>Jméno</th><th>Role</th><th>PIN</th><th></th></tr>
+ ${USERS.map(u=>`<tr><td>${u.jm}</td><td>${u.role}</td><td>••••</td><td><button class="chip" onclick="toast('Nový PIN vygenerován')">Reset PINu</button></td></tr>`).join('')}</table>
+ <button class="btn sec" style="margin-top:8px" onclick="toast('Přidání uživatele')">+ Přidat uživatele</button></div>
+ <div class="panel"><h2>Nastavení – ${PODNIKY[p].nazev}</h2>
+ <div class="row"><div class="field"><label>Červená hranice (dní)</label><input value="${PODNIKY[p].red}"></div><div class="field"><label>Žlutá hranice (dní)</label><input value="${PODNIKY[p].yel}"></div></div>
+ <div class="field"><label>Příjemci týdenního reportu</label><input placeholder="e-maily oddělené čárkou"></div>
+ <div class="field"><label>Týdenní cíl kontrol (prémie)</label><input value="${PODNIKY[p].cil||''}" placeholder="zatím bez cíle"></div>
+ <button class="btn" onclick="toast('Uloženo')">Uložit</button></div></div>
+ <div class="grid2"><div class="panel"><h2>Číselník položek</h2><div class="hint">${ITEMS[p].length} položek · ${RECS.filter(r=>r.p===p&&r.kdopl).length} k doplnění</div>
+ <div class="row" style="margin-top:8px"><button class="btn sec" onclick="toast('Nahrát export EAN ↔ číslo položky (xlsx/csv)')">⬆ Import číselníku</button><button class="btn gry" onclick="PC.view='zaznamy';PC.q='';render()">Položky k doplnění</button></div></div>
+ <div class="panel"><h2>Lokace a stav na lokacích (ERP)</h2><div class="hint">Lokací: ${LOKACE[p].length} (maketa) · poslední import stavu: 27. 10. 2026</div>
+ <div class="row" style="margin-top:8px"><button class="btn sec" onclick="toast('Nahrát seznam lokací')">⬆ Import lokací</button><button class="btn sec" onclick="toast('Po importu: zmizelé zboží se uzavře, doplní se „bez kontroly“ a FEFO')">⬆ Import stavu lokací</button></div></div></div>
+ <div class="panel"><h2>Log kontrol</h2><div class="hint">Každá akce (nový, potvrzeno, změna, není na lokaci, bez expiračního zboží, vydáno, zlikvidováno) se zapisuje s časem a jménem. Nic se nemaže.</div></div>`;}
+
+render();
+</script>
+</body>
+</html>
