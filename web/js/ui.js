@@ -40,7 +40,6 @@ export function dialog({ titulek, text = '', html = '', tlacitka }) {
     const zavri = (hodnota) => {
       el.remove();
       hotovo(hodnota);
-      window.dispatchEvent(new Event('cs:dialog-zavren'));
     };
     el.addEventListener('click', (e) => {
       if (e.target === el) zavri(null);

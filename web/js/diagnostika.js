@@ -1,4 +1,4 @@
-// Diagnostika skenování: události klávesnice a IME, hodnota pole, stav fokusu; přepínač režimu pole A/B/C.
+// Diagnostika skenování: události klávesnice a IME, hodnota pole, stav fokusu; přepínač režimu pole C/B.
 // Zapíná a vypíná se 5× klepnutím na číslo verze v rozcestníku; volba se pamatuje na zařízení.
 import { volej } from './api.js';
 import { nastavRezimPole, REZIMY_POLE, rezimPole, stavSkeneru } from './skener.js';
@@ -107,7 +107,8 @@ function text() {
   return `Verze ${VERZE} · režim pole ${s.rezim} (${REZIMY_POLE[s.rezim]}) · ${navigator.userAgent}\n`
     + `Fokus: ${popisCile(a)} · okno ${document.hasFocus() ? 'aktivní' : 'NEaktivní'} · ${document.visibilityState}\n`
     + `Skener: ${s.zobrazen ? 'zobrazen' : 'skrytý'} · obsluha ${s.obsluha ? 'ano' : 'NE'} · ${s.zpracovava ? 'zpracovává' : 'volný'}`
-    + ` · fokus v poli ${s.fokusVPoli ? 'ano' : 'NE'} · v poli "${s.vPoli}" · buffer "${s.buffer}" · fronta [${s.fronta.join(', ')}]\n`
+    + ` · fokus v poli ${s.fokusVPoli ? 'ano' : 'NE'} · readOnly ${s.readOnly ? 'ano' : 'ne'} · inputmode ${s.inputmode}`
+    + ` · v poli "${s.vPoli}" · fronta [${s.fronta.join(', ')}]\n`
     + `\nUdálosti (posledních ${MAX_UDALOSTI}):\n${radky.join('\n') || '–'}\n`
     + `\nZměny fokusu:\n${fokus.map((f) => `${cas(f.cas)} ${f.typ} ${f.cil}`).join('\n') || '–'}`;
 }

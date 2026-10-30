@@ -3,6 +3,7 @@ import { volej } from '../api.js';
 import { nactiZaklad, ulozZaklad } from '../db.js';
 import { cekajiciDavky } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
+import { pripravSkener } from '../skener.js';
 import { dnesZapocteno, ulozDnesZapocteno, ulozPodnik, zvolenyPodnik } from '../uloziste.js';
 import { esc, hlavicka, napojHlavicku, prejdi, toast } from '../ui.js';
 
@@ -41,7 +42,12 @@ export function zobrazExpiraceDomu(koren, relace) {
     ulozPodnik(b.dataset.podnik);
     zobrazExpiraceDomu(koren, relace);
   }));
-  koren.querySelectorAll('[data-cil]').forEach((b) => b.addEventListener('click', () => prejdi(b.dataset.cil)));
+  koren.querySelectorAll('[data-cil]').forEach((b) => b.addEventListener('click', () => {
+    // Skenovací pole ukázat a zaměřit hned v klepnutí – obrazovka se vykreslí až po změně adresy (Android
+    // by fokus mimo klepnutí ignoroval).
+    if (b.dataset.cil === '#/expirace/kontrola') pripravSkener();
+    prejdi(b.dataset.cil);
+  }));
   koren.querySelectorAll('.pripravujeme').forEach((b) => b.addEventListener('click', () =>
     toast('Připravujeme – bude v další verzi.')));
 

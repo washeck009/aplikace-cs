@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.2.3 – 2026-10-30 – Skenování podle ověřených pravidel pro Urovo DT66
+
+Sken na Urovo chodí přes IME (commitText), ne jako stisky kláves (ověřeno v jiné aplikaci na stejných čtečkách).
+
+### Změněno
+- Skenovací pole už nikdy nemá `inputmode="none"`. Výchozí režim **C** (fokus přes krátké `readOnly`, klávesnice
+  nevyskočí), záloha **B** (obyčejné pole); režim A z přepínače v diagnostice zmizel (uložené „A“ se bere jako C).
+- `focus()` se volá synchronně v obsluze klepnutí: přechod na Kontrolu lokace (dlaždice pole ukáže a zaměří ještě
+  před přechodem), ✓ / ✗, zavření dialogu, Zrušit ve formuláři, klepnutí kamkoliv. Odstraněno „blur → 50 ms → focus“;
+  časovač už jen kontroluje stav pro ukazatel zelená/šedá.
+- Jediná cesta příjmu skenu: zaměřené pole + událost `input`. Odstraněn globální buffer kláves.
+- Konec skenu: Enter (když už text v poli je), nebo pauza **250 ms** od posledního `input`.
+- Kamera: vypne se po skenu, po Zrušit i při odchodu z aplikace.
+
 ## 0.2.2 – 2026-10-30 – Ladění skenování přes IME
 
 Diagnostika z čtečky ukázala, že skener vkládá celý kód přes IME (`keydown key="Unidentified"`, pak Enter),

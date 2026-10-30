@@ -1,29 +1,26 @@
 // Skenování: jedno trvalé pole pro hardwarový skener Urovo (v index.html, mimo překreslovanou část obrazovky).
-// Skener (IME) zůstává navázaný na prvek, do kterého psal – pole se proto nikdy nenahrazuje a inputmode se mění
-// jen volbou režimu pole v diagnostice (A/B/C), nikdy po skenu.
-// Pojistky: sken zachycený i mimo pole, fronta skenů během překreslení, ruční zadání v dialogu a kamera.
+// Ověřeno na čtečkách Urovo DT66: sken chodí přes IME (commitText), ne jako stisky kláves. Proto:
+// - nikdy inputmode="none" (zavírá cestu, kterou sken chodí) – výchozí režim C (readonly trik), záloha B;
+// - pole musí být viditelné a zaměřené; focus() se volá synchronně v obsluze klepnutí (z časovače ho Android ignoruje);
+// - jediná cesta příjmu: zaměřené pole + událost input (žádný globální buffer kláves – dvě cesty si kradou text);
+// - konec skenu = Enter, nebo pauza 250 ms od posledního input (některé kusy Enter neposílají).
 import { toast } from './ui.js';
 
 // Knihovna pro kameru, když prohlížeč nemá BarcodeDetector – pevná verze a kontrolní součet souboru.
 const ZXING_URL = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
 const ZXING_SRI = 'sha384-BzBxP10ZE72aitqj5UMmUsbKFliP/DZqA8Wq+BNNhlIJDGoEd1tpkMYXOg9+n6sB';
 
-const MEZI_ZNAKY_MS = 50; // skener píše rychleji, člověk pomaleji
-const PAUZA_MS = 100; // konec skenu bez Enteru
-const NAVRAT_FOKUSU_MS = 50;
+const PAUZA_MS = 250; // konec skenu bez Enteru
+const READONLY_MS = 50;
 const SKRYTI_MS = 400; // obrazovka bez skenování pole po překreslení skryje
 const PLATNOST_SKENU_MS = 5000; // sken, pro který se nenajde obrazovka, se pak zahodí s upozorněním
-const MIN_DELKA = 3;
-const CEKANI_NA_TEXT_MS = 150; // IME může text doručit až po Enteru
-const READONLY_MS = 50;
+const KONTROLA_STAVU_MS = 500; // jen ukazatel zelená/šedá, fokus se tím neopravuje
 
-// Režim pole (volí se v diagnostice, pamatuje se v zařízení – kvůli zkoušení na čtečce bez nové verze):
-// A = inputmode="none" (nevyskočí klávesnice), B = obyčejné textové pole,
-// C = obyčejné pole, ale fokus přes krátké readOnly (potlačí klávesnici).
+// Režim pole (volí se v diagnostice, pamatuje se v zařízení):
+// C = obyčejné pole, fokus přes krátké readOnly (nevyskočí klávesnice) – výchozí; B = obyčejné textové pole.
 export const REZIMY_POLE = {
-  A: 'inputmode="none"',
-  B: 'bez inputmode',
-  C: 'readonly při fokusu'
+  C: 'readonly při fokusu',
+  B: 'obyčejné pole'
 };
 const KLIC_REZIMU = 'cs.rezimSkeneru';
 let rezim = nactiRezim();
@@ -36,59 +33,59 @@ let casovacSkryti = null;
 let casovacPauzy = null;
 let casovacFronty = null;
 let skladani = false;
-let casovacCekani = null; // Enter přišel, ale pole je prázdné – čeká se na text z IME
-const buffer = { text: '', posledni: 0, casovac: null };
+
+const blok = () => document.getElementById('skener');
+const pole = () => document.getElementById('sken');
+const otevrenyDialog = () => document.querySelector('.modal');
+const jeEditovatelne = (el) => !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
 
 function nactiRezim() {
   try {
     const r = localStorage.getItem(KLIC_REZIMU);
-    return REZIMY_POLE[r] ? r : 'A';
+    return REZIMY_POLE[r] ? r : 'C'; // i dřívější „A“ (inputmode none) → C
   } catch {
-    return 'A';
+    return 'C';
   }
 }
 
 export const rezimPole = () => rezim;
 
-/** Přepne režim pole (A/B/C) a zapamatuje ho; projeví se hned. */
+/** Přepne režim pole (C/B) a zapamatuje ho. Volá se z klepnutí, takže fokus projde. */
 export function nastavRezimPole(novy) {
   if (!REZIMY_POLE[novy]) return;
   rezim = novy;
   try {
     localStorage.setItem(KLIC_REZIMU, novy);
   } catch { /* jen pro tuto chvíli */ }
-  pouzijRezim();
-  vratFokus();
-}
-
-function pouzijRezim() {
-  const p = pole();
-  clearTimeout(casovacReadonly);
-  p.readOnly = false;
-  if (rezim === 'A') p.setAttribute('inputmode', 'none');
-  else p.removeAttribute('inputmode');
-}
-
-/** Fokus do pole podle režimu (C: krátce readOnly, aby nevyskočila klávesnice). */
-function zamerPole() {
-  const p = pole();
-  if (rezim === 'C') {
-    clearTimeout(casovacReadonly);
-    p.readOnly = true;
-    p.focus({ preventScroll: true });
-    casovacReadonly = setTimeout(() => { p.readOnly = false; }, READONLY_MS);
-  } else {
-    p.focus({ preventScroll: true });
-  }
+  zamerPole();
 }
 
 /** Zpráva do diagnostiky (událost cs:diag). */
 const diag = (text) => window.dispatchEvent(new CustomEvent('cs:diag', { detail: text }));
 
-const blok = () => document.getElementById('skener');
-const pole = () => document.getElementById('sken');
-const otevrenyDialog = () => document.querySelector('.modal');
-const jeEditovatelne = (el) => !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
+/**
+ * Fokus do pole – volat synchronně z obsluhy klepnutí. Režim C: krátce readOnly, aby nevyskočila klávesnice
+ * (vypnutí readOnly časovačem nevadí, fokus už je nastavený).
+ */
+export function zamerPole() {
+  const p = pole();
+  const b = blok();
+  if (!p || b.hidden || otevrenyDialog()) return;
+  const aktivni = document.activeElement;
+  if (aktivni !== p && jeEditovatelne(aktivni)) return; // uživatel píše jinde
+  if (aktivni !== p) {
+    if (rezim === 'C') {
+      clearTimeout(casovacReadonly);
+      p.readOnly = true;
+      p.focus({ preventScroll: true });
+      casovacReadonly = setTimeout(() => { p.readOnly = false; }, READONLY_MS);
+    } else {
+      p.readOnly = false;
+      p.focus({ preventScroll: true });
+    }
+  }
+  aktualizujStav();
+}
 
 /**
  * Zobrazí skenovací pole s popiskem a nastaví, kdo skeny zpracuje.
@@ -103,12 +100,26 @@ export function zobrazSkener({ popisek, placeholder = '', priKodu }) {
   if (b.hidden) {
     b.hidden = false;
     document.body.classList.add('se-skenerem');
-    vratFokus();
-  } else if (document.activeElement !== pole()) {
-    vratFokus();
   }
+  // Vykreslení po klepnutí (✓, Uložit…) běží synchronně v jeho obsluze – fokus pak projde.
+  zamerPole();
   zpracujFrontu();
   aktualizujStav();
+}
+
+/**
+ * Ukáže a zaměří pole ještě před přechodem na skenovací obrazovku – volat v obsluze klepnutí
+ * (dlaždice Kontrola lokace), protože obrazovka se vykreslí až po změně adresy, mimo klepnutí.
+ */
+export function pripravSkener() {
+  clearTimeout(casovacSkryti);
+  const b = blok();
+  if (b.hidden) {
+    b.querySelector('.skener-popisek').textContent = 'Načítám…';
+    b.hidden = false;
+    document.body.classList.add('se-skenerem');
+  }
+  zamerPole();
 }
 
 /** Skryje skenovací pole (obrazovka, kde se neskenuje, např. formulář). */
@@ -144,7 +155,8 @@ export function stavSkeneru() {
     zpracovava,
     fronta: fronta.map((f) => f.kod),
     vPoli: pole().value,
-    buffer: buffer.text,
+    readOnly: pole().readOnly,
+    inputmode: pole().getAttribute('inputmode') || '-',
     fokusVPoli: document.activeElement === pole()
   };
 }
@@ -186,8 +198,6 @@ async function zpracujFrontu() {
     }
   }
   aktualizujStav();
-  // Po skenu fokus „odpojit a znovu připojit“, aby skener psal do aktuálního pole.
-  vratFokus();
 }
 
 function zahodStareSkeny() {
@@ -199,68 +209,22 @@ function zahodStareSkeny() {
   toast(`Kód ${stare.map((f) => f.kod).join(', ')} tady nejde použít – skenuj v Kontrole lokace.`);
 }
 
-/** blur() a po chvíli focus() – obnoví spojení skeneru s polem. Nic nedělá, když uživatel píše jinde. */
-export function vratFokus() {
-  const p = pole();
-  if (!p || blok().hidden || otevrenyDialog() || document.visibilityState !== 'visible') return;
-  const aktivni = document.activeElement;
-  if (aktivni !== p && jeEditovatelne(aktivni)) return;
-  p.blur();
-  setTimeout(() => {
-    const a = document.activeElement;
-    if (blok().hidden || otevrenyDialog() || (a !== p && jeEditovatelne(a))) return;
-    zamerPole();
-    aktualizujStav();
-  }, NAVRAT_FOKUSU_MS);
-}
-
-/**
- * Enter v poli. Hodnota se nečte naslepo hned: když je pole prázdné, text z IME (commitText)
- * může dorazit až po Enteru – počká se na input/compositionend, nejdéle CEKANI_NA_TEXT_MS.
- */
-function priEnteru(zdroj) {
-  const p = pole();
-  diag(`${zdroj}: v poli "${p.value}"${skladani ? ' (IME skládá)' : ''}`);
-  setTimeout(() => diag(`${zdroj} +100 ms: v poli "${p.value}"`), 100);
-  if (p.value.trim() && !skladani) return odesliPole();
-  clearTimeout(casovacCekani);
-  casovacCekani = setTimeout(() => {
-    casovacCekani = null;
-    if (p.value.trim()) odesliPole();
-    else diag(`${zdroj}: text do ${CEKANI_NA_TEXT_MS} ms nedorazil`);
-  }, CEKANI_NA_TEXT_MS);
-}
-
-/** Text dorazil (input / compositionend) – pokud se po Enteru čekalo, zpracovat hned. */
-function priTextu() {
-  if (casovacCekani && !skladani && pole().value.trim()) odesliPole();
-  else naplanujPauzu();
-}
-
-function odesliPole() {
+function odesliPole(zdroj) {
   clearTimeout(casovacPauzy);
-  clearTimeout(casovacCekani);
-  casovacCekani = null;
   const p = pole();
   const kod = p.value;
   p.value = '';
+  if (kod.trim()) diag(`${zdroj}: odesláno "${kod}"`);
   prijmiKod(kod, 'pole');
 }
 
+/** Konec skenu bez Enteru: 250 ms od posledního input (během skládání IME se nečeká). */
 function naplanujPauzu() {
   clearTimeout(casovacPauzy);
   if (skladani) return;
   casovacPauzy = setTimeout(() => {
-    if (pole().value.trim().length >= MIN_DELKA) odesliPole();
+    if (pole().value.trim()) odesliPole('pauza');
   }, PAUZA_MS);
-}
-
-function dokonciBuffer() {
-  clearTimeout(buffer.casovac);
-  const text = buffer.text;
-  buffer.text = '';
-  if (text.length >= MIN_DELKA) prijmiKod(text, 'mimo pole');
-  else vratFokus();
 }
 
 function aktualizujStav() {
@@ -278,31 +242,32 @@ function aktualizujStav() {
 function napoj() {
   const p = pole();
   const b = blok();
+  p.removeAttribute('inputmode'); // pro jistotu, kdyby zůstal ve starém index.html z cache
 
   // Výška pole (mění se se šířkou a délkou popisku) – o tolik se odsadí obsah a patička s tlačítky.
   new ResizeObserver(() => {
     if (!b.hidden) document.documentElement.style.setProperty('--sken-vyska', b.offsetHeight + 'px');
   }).observe(b);
 
-  pouzijRezim();
-
-  // Enter bez preventDefault – pole není ve formuláři a zrušení klávesy by mohlo zahodit text, který IME ještě skládá.
+  // Enter: když už text v poli je, hned zpracovat; jinak ho dořeší pauza po input (IME může text doručit po Enteru).
   p.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.keyCode === 13) priEnteru('Enter');
+    if (e.key !== 'Enter' && e.keyCode !== 13) return;
+    diag(`Enter: v poli "${p.value}"${skladani ? ' (IME skládá)' : ''}`);
+    setTimeout(() => diag(`Enter +100 ms: v poli "${p.value}"`), 100);
+    if (p.value.trim() && !skladani) odesliPole('Enter');
   });
-  // Některé klávesnice (IME) pošlou konec řádku jen jako beforeinput/input, ne jako klávesu Enter.
   p.addEventListener('beforeinput', (e) => {
     if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') {
       e.preventDefault();
-      priEnteru('konec řádku');
+      if (p.value.trim()) odesliPole('konec řádku');
     }
   });
   p.addEventListener('input', () => {
     if (/[\r\n]/.test(p.value)) {
       p.value = p.value.replace(/[\r\n]/g, '');
-      odesliPole();
+      odesliPole('konec řádku');
     } else {
-      priTextu();
+      naplanujPauzu();
     }
   });
   p.addEventListener('compositionstart', () => {
@@ -311,51 +276,27 @@ function napoj() {
   });
   p.addEventListener('compositionend', () => {
     skladani = false;
-    priTextu();
+    naplanujPauzu();
   });
 
   b.addEventListener('click', (e) => {
     if (e.target.closest('[data-klavesnice]')) rucniZadani();
     else if (e.target.closest('[data-kamera]')) kamera();
-    else vratFokus();
   });
 
-  // Pojistka: znaky, které přijdou mimo pole (fokus na tlačítku, v dialogu bez pole…), skládat do bufferu.
-  // Na přihlášení ne – tam číslice z klávesnice čtečky zadávají PIN.
-  document.addEventListener('keydown', (e) => {
-    if (e.target === p || jeEditovatelne(e.target) || document.querySelector('.pinpad')) return;
-    if (e.key === 'Enter' || e.keyCode === 13) {
-      if (buffer.text) {
-        e.preventDefault(); // Enter ze skeneru nesmí stisknout tlačítko s fokusem
-        dokonciBuffer();
-      }
-      return;
-    }
-    if (e.key && e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-      const ted = performance.now();
-      if (buffer.text && ted - buffer.posledni > MEZI_ZNAKY_MS) buffer.text = ''; // pomalé psání člověka
-      buffer.text += e.key;
-      buffer.posledni = ted;
-      e.preventDefault();
-      clearTimeout(buffer.casovac);
-      buffer.casovac = setTimeout(dokonciBuffer, PAUZA_MS);
-    } else if (e.key === 'Unidentified' || e.keyCode === 229) {
-      // Znak přes IME mimo pole se přečíst nedá – aspoň hned vrátit fokus, ať další znaky jdou do pole.
-      if (!otevrenyDialog()) zamerPole();
-    }
-  }, true);
-
-  // Po každém klepnutí, návratu do aplikace a zavření dialogu vrátit fokus do pole.
-  document.addEventListener('click', () => setTimeout(vratFokus, 0));
-  document.addEventListener('visibilitychange', () => {
-    aktualizujStav();
-    if (document.visibilityState === 'visible') vratFokus();
+  // Klepnutí kamkoliv (✓, ✗, zavření dialogu, prázdné místo) → fokus do pole, synchronně v obsluze klepnutí.
+  // Klepnutí na obyčejné pole formuláře fokus nechá tam.
+  document.addEventListener('click', (e) => {
+    if (jeEditovatelne(e.target) && e.target !== p) return;
+    zamerPole();
   });
-  window.addEventListener('focus', vratFokus);
+  document.addEventListener('visibilitychange', aktualizujStav);
+  window.addEventListener('focus', aktualizujStav);
   window.addEventListener('blur', aktualizujStav);
-  window.addEventListener('cs:dialog-zavren', vratFokus);
   document.addEventListener('focusin', aktualizujStav);
   document.addEventListener('focusout', () => setTimeout(aktualizujStav, 0));
+  // Jen kontrola stavu pro ukazatel – fokus se tím neopravuje (z časovače ho Android ignoruje).
+  setInterval(aktualizujStav, KONTROLA_STAVU_MS);
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', napoj);
@@ -376,8 +317,8 @@ function rucniZadani() {
   const vstup = m.querySelector('input');
   const zavri = (kod) => {
     m.remove();
+    zamerPole(); // klepnutí / Enter v dialogu – pořád v obsluze uživatelské akce
     if (kod) prijmiKod(kod, 'ručně');
-    window.dispatchEvent(new Event('cs:dialog-zavren'));
   };
   m.addEventListener('click', (e) => {
     if (e.target === m || e.target.closest('[data-zrusit]')) zavri('');
@@ -393,15 +334,14 @@ function rucniZadani() {
   vstup.focus();
 }
 
-/* ---------- Kamera ---------- */
+/* ---------- Kamera (jen za tlačítkem 📷, po skenu nebo Zrušit se vypne) ---------- */
 
 async function kamera() {
   const kod = await skenujKamerou();
   if (kod) prijmiKod(kod, 'kamera');
-  window.dispatchEvent(new Event('cs:dialog-zavren'));
 }
 
-/** Otevře náhled kamery a vrátí první přečtený kód, nebo null (Zrušit, chyba). */
+/** Otevře náhled kamery a vrátí první přečtený kód, nebo null (Zrušit, chyba, odchod z aplikace). */
 function skenujKamerou() {
   return new Promise((hotovo) => {
     const el = document.createElement('div');
@@ -417,22 +357,33 @@ function skenujKamerou() {
     let ctecka = null;
     let hotovoUz = false;
 
+    const priSkryti = () => {
+      if (document.visibilityState === 'hidden') konec(null);
+    };
     const konec = (kod) => {
       if (hotovoUz) return;
       hotovoUz = true;
+      // Kameru vždy vypnout – po skenu, Zrušit i odchodu z aplikace.
       stream?.getTracks().forEach((t) => t.stop());
+      video.srcObject = null;
       try { ctecka?.reset(); } catch { /* už zastavená */ }
+      document.removeEventListener('visibilitychange', priSkryti);
       el.remove();
       if (kod && navigator.vibrate) navigator.vibrate(60);
       hotovo(kod || null);
     };
+    // Zrušit je klepnutí – fokus do pole projde (document click po odstranění dialogu).
     el.querySelector('[data-zrusit]').addEventListener('click', () => konec(null));
+    document.addEventListener('visibilitychange', priSkryti);
 
     (async () => {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Prohlížeč nepodporuje kameru.');
       if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).length) {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        if (hotovoUz) return konec(null);
+        if (hotovoUz) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
         video.srcObject = stream;
         await video.play();
         const detektor = new BarcodeDetector();

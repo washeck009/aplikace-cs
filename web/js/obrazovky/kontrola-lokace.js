@@ -9,7 +9,7 @@ import {
 import { vyfotit } from '../fotky.js';
 import { cekajiciDavky, pridejDoFronty } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
-import { skryjSkener, zobrazSkener } from '../skener.js';
+import { pripravSkener, skryjSkener, zobrazSkener } from '../skener.js';
 import { dialog, esc, hlavicka, napojHlavicku, toast } from '../ui.js';
 import { zvolenyPodnik } from '../uloziste.js';
 import { aplikujDavku, noveId } from '../zaznamy.js';
@@ -30,6 +30,8 @@ const nastaveni = () => s.zaklad?.nastaveni;
 
 export async function zobrazKontroluLokace(el, relace) {
   koren = el;
+  // Pole nechat viditelné i během načítání dat (jinak by ho app.js po chvíli skryl a ztratil fokus).
+  pripravSkener();
   const podnik = zvolenyPodnik();
   if (!s || s.jmeno !== relace.jmeno || s.podnik !== podnik) {
     s = { jmeno: relace.jmeno, podnik, zaklad: null, krok: 'sken', lokace: null, rozhodnuti: {}, nove: [], formular: null };

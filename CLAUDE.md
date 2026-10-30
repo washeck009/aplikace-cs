@@ -30,8 +30,10 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
 - **Skenování:** hardwarový skener Urovo funguje jako klávesnice (kód + Enter) → aktivní vstupní pole musí mít vždy fokus
   a reagovat na Enter. Kamera je záloha (`BarcodeDetector`, pokud chybí, knihovna z CDN s pevnou verzí).
   Skenovací pole je **jedno trvalé** (`#sken` v `web/index.html`, obsluha `web/js/skener.js`) – obrazovky volají jen
-  `zobrazSkener` / `skryjSkener`, pole nikdy nepřekreslují ani nemění jeho `inputmode` (jinak skener po prvním skenu
-  přestane psát). Ladění na čtečce: 5× klepnout na číslo verze → diagnostika událostí klávesnice.
+  `zobrazSkener` / `skryjSkener` / `pripravSkener`, pole nikdy nepřekreslují. Ověřená pravidla pro Urovo (sken chodí
+  přes IME): nikdy `inputmode="none"`; pole viditelné a zaměřené; `focus()` jen synchronně v obsluze klepnutí
+  (z časovače ho Android ignoruje); jediná cesta příjmu = pole + `input` (žádný globální buffer kláves); konec skenu
+  = Enter nebo pauza 250 ms. Ladění na čtečce: 5× klepnout na číslo verze → diagnostika.
 - Komunikace frontend → Apps Script: `fetch` POST s `Content-Type: text/plain` (kvůli CORS bez preflightu), tělo JSON
   `{action, token, data}`, odpověď JSON `{ok, data | error}`.
 - **Bezpečnost:** PIN se ukládá jen jako hash se solí (SHA-256, `Utilities.computeDigest`). Po přihlášení dostane klient

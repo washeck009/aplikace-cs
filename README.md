@@ -190,5 +190,6 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
 - Neočekávané chyby serveru se zapisují do listu `Log_chyb`.
 - **Diagnostika skenování** na čtečce: v rozcestníku 5× rychle klepni na *verze …* → nahoře se ukáže panel
   s posledními událostmi klávesnice a IME a stavem fokusu (zůstane zapnutý i po restartu; vypíná se tlačítkem *Vypnout*).
-  *Režim pole* A / B / C přepíná, jak se skenovací pole chová vůči klávesnici (pro zkoušení na čtečce, pamatuje se).
+  *Režim pole* C (výchozí, klávesnice nevyskakuje) / B (obyčejné pole) – kdyby C na některé čtečce nefungoval
+  (pamatuje se v zařízení).
   *Odeslat výpis* uloží výpis do listu `Log_chyb` v tabulce (akce `diagnostika skenování`), *Kopírovat* do schránky.
