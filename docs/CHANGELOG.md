@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.1 – 2026-10-30
+
+### Změněno
+- `web/config.js`: doplněná URL webové aplikace Apps Scriptu.
+- Nasazení na Pages: novější verze actions běžící na Node.js 24 (`checkout@v7`, `configure-pages@v6`,
+  `upload-pages-artifact@v5`, `deploy-pages@v5`).
+
 ## 0.1.0 – 2026-10-29 – Etapa 1: základ
 
 ### Přidáno
