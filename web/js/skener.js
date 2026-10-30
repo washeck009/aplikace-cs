@@ -3,7 +3,8 @@
 // - nikdy inputmode="none" (zavírá cestu, kterou sken chodí) – výchozí režim C (readonly trik), záloha B;
 // - pole musí být viditelné a zaměřené; focus() se volá synchronně v obsluze klepnutí (z časovače ho Android ignoruje);
 // - jediná cesta příjmu: zaměřené pole + událost input (žádný globální buffer kláves – dvě cesty si kradou text);
-// - konec skenu = Enter, nebo pauza 250 ms od posledního input (některé kusy Enter neposílají).
+// - konec skenu = Enter, nebo pauza 250 ms od posledního input (některé kusy Enter neposílají) – pauza ale jen
+//   u rychlého vstupu (skener); pomalé ruční psaní ukončí jen Enter nebo tlačítko OK.
 import { toast } from './ui.js';
 
 // Knihovna pro kameru, když prohlížeč nemá BarcodeDetector – pevná verze a kontrolní součet souboru.
@@ -11,6 +12,7 @@ const ZXING_URL = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.
 const ZXING_SRI = 'sha384-BzBxP10ZE72aitqj5UMmUsbKFliP/DZqA8Wq+BNNhlIJDGoEd1tpkMYXOg9+n6sB';
 
 const PAUZA_MS = 250; // konec skenu bez Enteru
+const RYCHLE_MS = 50; // skener posílá znaky do ~50 ms po sobě (nebo celý kód najednou přes IME); člověk pomaleji
 const READONLY_MS = 50;
 const SKRYTI_MS = 400; // obrazovka bez skenování pole po překreslení skryje
 const PLATNOST_SKENU_MS = 5000; // sken, pro který se nenajde obrazovka, se pak zahodí s upozorněním
@@ -33,6 +35,10 @@ let casovacSkryti = null;
 let casovacPauzy = null;
 let casovacFronty = null;
 let skladani = false;
+// Rychlost vstupu v poli: null = zatím nevíme (jeden znak), true = sken, false = ruční psaní.
+let rychle = null;
+let posledniInput = 0;
+let delkaPred = 0;
 
 const blok = () => document.getElementById('skener');
 const pole = () => document.getElementById('sken');
@@ -155,6 +161,7 @@ export function stavSkeneru() {
     zpracovava,
     fronta: fronta.map((f) => f.kod),
     vPoli: pole().value,
+    vstup: rychle === null ? '?' : rychle ? 'rychlý (sken)' : 'ruční psaní',
     readOnly: pole().readOnly,
     inputmode: pole().getAttribute('inputmode') || '-',
     fokusVPoli: document.activeElement === pole()
@@ -214,16 +221,42 @@ function odesliPole(zdroj) {
   const p = pole();
   const kod = p.value;
   p.value = '';
-  if (kod.trim()) diag(`${zdroj}: odesláno "${kod}"`);
+  if (kod.trim()) diag(`${zdroj}: odesláno "${kod}" (${rychle === false ? 'psáno ručně' : 'rychlý vstup'})`);
+  rychle = null;
+  delkaPred = 0;
   prijmiKod(kod, 'pole');
+  aktualizujStav();
 }
 
-/** Konec skenu bez Enteru: 250 ms od posledního input (během skládání IME se nečeká). */
+/**
+ * Po každém input: je to sken, nebo ruční psaní? Sken = celý text najednou (IME commitText), nebo znaky
+ * do RYCHLE_MS po sobě. Jakmile přijde znak pomaleji (nebo mazání), je to ruční psaní až do odeslání pole.
+ */
+function zmerRychlost(e) {
+  const delka = pole().value.length;
+  const cas = e.timeStamp;
+  if (!delka) {
+    rychle = null;
+  } else if (!delkaPred) {
+    rychle = delka >= 2 ? true : null;
+  } else if (rychle !== false) {
+    const pridano = delka - delkaPred;
+    if (pridano >= 2 || (pridano > 0 && cas - posledniInput <= RYCHLE_MS)) rychle = true;
+    else rychle = false;
+  }
+  posledniInput = cas;
+  delkaPred = delka;
+}
+
+/**
+ * Konec skenu bez Enteru: 250 ms od posledního input – jen u rychlého vstupu (skener). Během skládání IME
+ * se nečeká. Ručně psaný text čeká na Enter nebo OK.
+ */
 function naplanujPauzu() {
   clearTimeout(casovacPauzy);
-  if (skladani) return;
+  if (skladani || rychle !== true) return;
   casovacPauzy = setTimeout(() => {
-    if (pole().value.trim()) odesliPole('pauza');
+    if (rychle === true && pole().value.trim()) odesliPole('pauza');
   }, PAUZA_MS);
 }
 
@@ -232,8 +265,10 @@ function aktualizujStav() {
   if (!b) return;
   const pripraven = !b.hidden && !!obsluha && !zpracovava && document.activeElement === pole()
     && document.visibilityState === 'visible' && document.hasFocus();
+  const rucne = rychle === false && !!pole().value.trim();
   b.classList.toggle('pripraven', pripraven);
-  b.querySelector('.skener-text').textContent = pripraven ? 'Připraveno ke skenování'
+  b.classList.toggle('rucne', rucne);
+  b.querySelector('.skener-text').textContent = pripraven ? (rucne ? 'Píšeš ručně – potvrď Enterem nebo OK' : 'Připraveno ke skenování')
     : zpracovava || (!obsluha && fronta.length) ? 'Zpracovávám…' : 'Pole není aktivní – klepni sem';
 }
 
@@ -262,12 +297,14 @@ function napoj() {
       if (p.value.trim()) odesliPole('konec řádku');
     }
   });
-  p.addEventListener('input', () => {
+  p.addEventListener('input', (e) => {
     if (/[\r\n]/.test(p.value)) {
       p.value = p.value.replace(/[\r\n]/g, '');
       odesliPole('konec řádku');
     } else {
+      zmerRychlost(e);
       naplanujPauzu();
+      aktualizujStav();
     }
   });
   p.addEventListener('compositionstart', () => {
@@ -279,8 +316,14 @@ function napoj() {
     naplanujPauzu();
   });
 
+  // OK si fokus nebere – klávesnice zůstane otevřená a pole zaměřené.
+  b.addEventListener('mousedown', (e) => {
+    if (e.target.closest('[data-ok]')) e.preventDefault();
+  });
   b.addEventListener('click', (e) => {
-    if (e.target.closest('[data-klavesnice]')) rucniZadani();
+    if (e.target.closest('[data-ok]')) {
+      if (p.value.trim()) odesliPole('OK');
+    } else if (e.target.closest('[data-klavesnice]')) rucniZadani();
     else if (e.target.closest('[data-kamera]')) kamera();
   });
 

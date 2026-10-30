@@ -24,7 +24,7 @@ export function zobrazExpiraceDomu(koren, relace) {
   const podnik = zvolenyPodnik();
   const cislo = ++vykresleni;
 
-  koren.innerHTML = hlavicka('Expirace', { zpet: '#/' }) + `<main class="ph-body">
+  koren.innerHTML = hlavicka('Expirace', { zpet: '#/', podnik }) + `<main class="ph-body">
     <div class="seg">${PODNIKY.map((p) =>
       `<button data-podnik="${p.kod}" class="${p.kod === podnik ? 'on' : ''}">${esc(p.nazev)}</button>`).join('')}</div>
     ${DLAZDICE.map((d) => `<button class="tile${d.cil ? '' : ' pripravujeme'}"${d.cil ? ` data-cil="${d.cil}"` : ''}>

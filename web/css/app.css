@@ -34,12 +34,15 @@ input, select, textarea { font: inherit; }
   min-height: 44px; min-width: 44px; padding: 8px 12px; font-size: 16px;
 }
 .ph-head .zpet { font-size: 20px; }
+/* Modul Expirace: hlavička v barvě podniku (podniky.js) a vždy s jeho názvem */
+.ph-head.s-podnikem { background: var(--podnik-barva, var(--pri)); color: var(--podnik-text, #fff); }
+.ph-podnik { display: block; font-size: 12px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; opacity: .9; }
 .ph-body { padding: 14px; flex: 1; }
 
 /* Přepínač podniku */
 .seg { display: flex; background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 14px; }
 .seg button { flex: 1; border: 0; background: none; padding: 14px 8px; font-weight: 600; color: var(--mut); }
-.seg button.on { background: var(--pri); color: #fff; }
+.seg button.on { background: var(--podnik-barva, var(--pri)); color: var(--podnik-text, #fff); }
 
 /* Dlaždice */
 .tile {
@@ -90,7 +93,7 @@ input, select, textarea { font: inherit; }
 
 /* Fronta neodeslaných změn v hlavičce */
 .ph-head .fronta { background: var(--yel); font-weight: 700; }
-.ph-head .fronta.chyba-fronty { background: var(--red); }
+.ph-head .fronta.chyba-fronty { background: var(--red); box-shadow: inset 0 0 0 2px #fff; }
 .fronta-seznam { max-height: 50vh; overflow: auto; margin: 8px 0 12px; }
 .fronta-radek { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
 .fronta-radek > div { flex: 1; }
@@ -116,6 +119,8 @@ input, select, textarea { font: inherit; }
 .skener.pripraven input { background: #fff; border-color: var(--grn); }
 .skener input:focus { outline: none; }
 .scan-btn { flex: 0 0 52px; border: 1px solid var(--line); background: var(--gryb); border-radius: 8px; font-size: 22px; }
+.scan-btn.scan-ok { font-size: 16px; font-weight: 700; }
+.skener.rucne .scan-ok { background: var(--grn); border-color: var(--grn); color: #fff; }
 body.se-skenerem .app { padding-bottom: var(--sken-vyska, 130px); }
 body.se-skenerem .foot { bottom: var(--sken-vyska, 130px); }
 .rucni-kod { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 20px; text-transform: uppercase; }
@@ -222,6 +227,13 @@ body.pc-rezim .app { max-width: none; background: var(--bg); }
 .side-pata { margin-top: auto; padding: 16px; font-size: 12px; color: #9fb0c2; }
 .side-pata .odkaz { color: #9fd0ff; padding: 6px 0 0; width: auto; }
 .main { flex: 1; padding: 20px 24px; min-width: 0; }
+.pc-sloupec { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.pc-pruh {
+  background: var(--podnik-barva, var(--pri)); color: var(--podnik-text, #fff); padding: 10px 24px;
+  display: flex; align-items: baseline; gap: 10px; position: sticky; top: 0; z-index: 10;
+}
+.pc-pruh b { font-size: 17px; }
+.pc-pruh span { font-size: 13px; opacity: .9; }
 .main h1 { font-size: 20px; margin: 0 0 4px; }
 .main .sub { color: var(--mut); font-size: 13px; margin-bottom: 16px; }
 .tabs { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }

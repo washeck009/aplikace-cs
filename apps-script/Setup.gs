@@ -44,7 +44,7 @@ function setup(jmenoAdmina, pinAdmina) {
   });
 
   const maAdmina = nactiList_('Uzivatele').radky.some(function (u) {
-    return text_(u.role) === 'admin' && jeAno_(u.aktivni, true);
+    return roleUzivatele_(u) === 'admin' && jeAno_(u.aktivni, true);
   });
   if (maAdmina) {
     oznam_('Listy a nastavení jsou v pořádku. Administrátor už existuje.');
@@ -118,24 +118,58 @@ function doplnNastaveni_() {
   pridejRadky_('Nastaveni', nove);
 }
 
-/** Přidá uživatele s PINem (uloží jen hash se solí). */
+const TEXT_ROLI = 'Napiš číslo nebo název role:\n1 = skladník\n2 = vedoucí\n3 = manažer\n4 = admin (správce)';
+const CHYBA_PINU = 'PIN musí mít přesně 4 číslice, např. 0427 – bez písmen a mezer.';
+
+/** PIN z dialogu bez mezer (např. „04 27“). */
+function upravPin_(pin) {
+  return text_(pin).replace(/\s+/g, '');
+}
+
+function chybaRole_(role) {
+  return (text_(role) ? 'Roli „' + text_(role) + '“ neznám.' : 'Role není vyplněná.')
+    + ' Napiš číslo 1–4 (1 skladník, 2 vedoucí, 3 manažer, 4 admin) nebo název role – velká písmena ani háčky nevadí.';
+}
+
+/**
+ * Najde uživatele podle jména – velikost písmen nevadí, háčky a čárky taky ne (když je shoda jednoznačná).
+ * Když ho nenajde, vyhodí srozumitelnou chybu.
+ */
+function najdiUzivatelePodleJmena_(radky, jmeno) {
+  const hledane = text_(jmeno).replace(/\s+/g, ' ').toLowerCase();
+  if (!hledane) throw new Error('Jméno je prázdné – napiš jméno uživatele tak, jak je v listu Uzivatele.');
+  const presne = radky.filter(function (u) { return text_(u.jmeno).toLowerCase() === hledane; });
+  if (presne.length) return presne[0];
+  const bez = bezDiakritiky_(hledane);
+  const podobne = radky.filter(function (u) { return bezDiakritiky_(u.jmeno).toLowerCase() === bez; });
+  if (podobne.length === 1) return podobne[0];
+  if (podobne.length > 1) {
+    throw new Error('Jménu „' + text_(jmeno) + '“ odpovídá víc uživatelů ('
+      + podobne.map(function (u) { return text_(u.jmeno); }).join(', ') + '). Napiš ho přesně i s háčky a čárkami.');
+  }
+  throw new Error('Uživatel „' + text_(jmeno) + '“ v listu Uzivatele není. Zkontroluj jméno ve sloupci jmeno '
+    + '(velká písmena ani háčky nevadí), nebo ho přidej přes Přidat uživatele.');
+}
+
+/** Přidá uživatele s PINem (uloží jen hash se solí). Role i jako „Skladník“ nebo číslo 1–4. */
 function pridejUzivatele_(jmeno, role, pin) {
-  jmeno = text_(jmeno);
-  role = text_(role).toLowerCase();
-  if (!jmeno) throw new Error('Jméno nesmí být prázdné.');
-  if (!ROLE_UROVEN[role]) throw new Error('Neznámá role „' + role + '“. Povolené: ' + Object.keys(ROLE_UROVEN).join(', ') + '.');
-  if (!platnyPin_(pin)) throw new Error('PIN musí mít přesně 4 číslice.');
+  jmeno = text_(jmeno).replace(/\s+/g, ' ');
+  const klicRole = normalizujRoli_(role);
+  pin = upravPin_(pin);
+  if (!jmeno) throw new Error('Jméno je prázdné – napiš jméno, které se bude zobrazovat v aplikaci.');
+  if (!klicRole) throw new Error(chybaRole_(role));
+  if (!platnyPin_(pin)) throw new Error(CHYBA_PINU);
 
   sZamkem_(function () {
     const existuje = nactiList_('Uzivatele').radky.some(function (u) {
       return text_(u.jmeno).toLowerCase() === jmeno.toLowerCase();
     });
-    if (existuje) throw new Error('Uživatel „' + jmeno + '“ už existuje.');
+    if (existuje) throw new Error('Uživatel „' + jmeno + '“ už v listu Uzivatele je. PIN mu změníš v menu Změnit PIN / odemknout uživatele.');
     const sul = novaSul_();
     pridejRadky_('Uzivatele', [{
       id: noveId_(),
       jmeno: jmeno,
-      role: role,
+      role: klicRole,
       pin_hash: hashPinu_(String(pin), sul),
       pin_salt: sul,
       aktivni: true,
@@ -145,14 +179,12 @@ function pridejUzivatele_(jmeno, role, pin) {
   });
 }
 
-/** Nastaví uživateli nový PIN, zruší zámek a odhlásí ho ze všech zařízení. */
+/** Nastaví uživateli nový PIN, zruší zámek a odhlásí ho ze všech zařízení. Vrátí jméno z listu. */
 function zmenPin_(jmeno, pin) {
-  if (!platnyPin_(pin)) throw new Error('PIN musí mít přesně 4 číslice.');
-  sZamkem_(function () {
-    const u = nactiList_('Uzivatele').radky.filter(function (r) {
-      return text_(r.jmeno).toLowerCase() === text_(jmeno).toLowerCase();
-    })[0];
-    if (!u) throw new Error('Uživatel „' + text_(jmeno) + '“ neexistuje.');
+  pin = upravPin_(pin);
+  if (!platnyPin_(pin)) throw new Error(CHYBA_PINU);
+  return sZamkem_(function () {
+    const u = najdiUzivatelePodleJmena_(nactiList_('Uzivatele').radky, jmeno);
     const sul = novaSul_();
     upravRadek_('Uzivatele', u._radek, {
       pin_hash: hashPinu_(String(pin), sul),
@@ -161,36 +193,57 @@ function zmenPin_(jmeno, pin) {
       zamceno_do: ''
     });
     zrusTokenyUzivatele_(text_(u.id));
+    return text_(u.jmeno);
   });
 }
 
 function menuPridatUzivatele() {
   const ui = uiNeboChyba_();
-  const jmeno = zeptejSe_(ui, 'Nový uživatel', 'Jméno (tak, jak se bude zobrazovat v aplikaci):');
+  const titulek = 'Nový uživatel';
+  const jmeno = zeptejSeDokud_(ui, titulek, 'Jméno (tak, jak se bude zobrazovat v aplikaci):', function (t) {
+    return t ? '' : 'Jméno je prázdné.';
+  });
   if (jmeno === null) return;
-  const role = zeptejSe_(ui, 'Nový uživatel', 'Role – napiš jednu z: skladnik, vedouci, manazer, admin');
+  const role = zeptejSeDokud_(ui, titulek, 'Role pro „' + jmeno + '“. ' + TEXT_ROLI, function (t) {
+    return normalizujRoli_(t) ? '' : chybaRole_(t);
+  });
   if (role === null) return;
-  const pin = zeptejSe_(ui, 'Nový uživatel', 'PIN – 4 číslice. Sděl ho uživateli osobně.');
+  const pin = zeptejSeDokud_(ui, titulek, 'PIN – 4 číslice. Sděl ho uživateli osobně.', function (t) {
+    return platnyPin_(upravPin_(t)) ? '' : CHYBA_PINU;
+  });
   if (pin === null) return;
   try {
     pridejUzivatele_(jmeno, role, pin);
-    ui.alert('Uživatel „' + text_(jmeno) + '“ přidán.');
+    ui.alert('Hotovo', 'Uživatel „' + text_(jmeno) + '“ přidán jako ' + NAZVY_ROLI[normalizujRoli_(role)]
+      + '. Přihlásí se jménem a PINem.', ui.ButtonSet.OK);
   } catch (e) {
-    ui.alert('Nepodařilo se: ' + e.message);
+    ui.alert('Uživatel nebyl přidán', e.message, ui.ButtonSet.OK);
   }
 }
 
 function menuZmenitPin() {
   const ui = uiNeboChyba_();
-  const jmeno = zeptejSe_(ui, 'Změnit PIN', 'Jméno uživatele:');
+  const titulek = 'Změnit PIN / odemknout';
+  const radky = nactiList_('Uzivatele').radky;
+  const jmeno = zeptejSeDokud_(ui, titulek, 'Jméno uživatele (velká písmena ani háčky nevadí):', function (t) {
+    try {
+      najdiUzivatelePodleJmena_(radky, t);
+      return '';
+    } catch (e) {
+      return e.message;
+    }
+  });
   if (jmeno === null) return;
-  const pin = zeptejSe_(ui, 'Změnit PIN', 'Nový PIN – 4 číslice:');
+  const pin = zeptejSeDokud_(ui, titulek, 'Nový PIN – 4 číslice:', function (t) {
+    return platnyPin_(upravPin_(t)) ? '' : CHYBA_PINU;
+  });
   if (pin === null) return;
   try {
-    zmenPin_(jmeno, pin);
-    ui.alert('PIN změněn, účet odemčen. Uživatel se musí znovu přihlásit.');
+    const kdo = zmenPin_(jmeno, pin);
+    ui.alert('Hotovo', 'PIN uživatele „' + kdo + '“ je změněný a účet odemčený. Na všech zařízeních se musí přihlásit znovu.',
+      ui.ButtonSet.OK);
   } catch (e) {
-    ui.alert('Nepodařilo se: ' + e.message);
+    ui.alert('PIN nebyl změněn', e.message, ui.ButtonSet.OK);
   }
 }
 
@@ -209,6 +262,21 @@ function zeptejSe_(ui, titulek, otazka) {
   const odpoved = ui.prompt(titulek, otazka, ui.ButtonSet.OK_CANCEL);
   if (odpoved.getSelectedButton() !== ui.Button.OK) return null;
   return odpoved.getResponseText().trim();
+}
+
+/**
+ * Ptá se, dokud odpověď neprojde kontrolou (`chyba(text)` vrátí '' = v pořádku, jinak text chyby,
+ * který se ukáže v dalším dotazu). Vrátí odpověď, nebo null při Zrušit.
+ */
+function zeptejSeDokud_(ui, titulek, otazka, chyba) {
+  let text = otazka;
+  for (;;) {
+    const odpoved = zeptejSe_(ui, titulek, text);
+    if (odpoved === null) return null;
+    const problem = chyba(odpoved);
+    if (!problem) return odpoved;
+    text = '⚠ ' + problem + '\n\n' + otazka;
+  }
 }
 
 /** Upozornění v tabulce, nebo do protokolu, když dialog nejde zobrazit. */

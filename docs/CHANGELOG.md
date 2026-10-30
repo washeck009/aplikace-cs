@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.3.1 – 2026-10-30 – Opravy po testu etap 2–3
+
+### Opraveno
+- **Ruční psaní do skenovacího pole**: pole odeslalo kód po pauze 250 ms, takže při psaní vzalo jen první písmeno.
+  Pauzou se teď ukončí jen rychlý vstup (skener – celý kód najednou přes IME, nebo znaky do ~50 ms po sobě).
+  Pomalé psaní čeká na **Enter** nebo nové tlačítko **OK** vedle pole (při ručním psaní zezelená, ukazatel hlásí
+  „Píšeš ručně – potvrď Enterem nebo OK“). Pravidla skenování v `CLAUDE.md` doplněna.
+- Menu **Přidat uživatele**: role jde napsat s háčky a velkými písmeny (*skladník*, *Vedoucí*, *MANAŽER*, *správce*)
+  nebo číslem 1–4 (dialog je nabízí). Při chybě (role, PIN, prázdné jméno) se dialog zeptá znovu a česky řekne,
+  co napsat. PIN smí obsahovat mezeru („04 27“).
+- Menu **Změnit PIN / odemknout**: jméno najde i bez háčků a s jinými velkými písmeny, při nejednoznačné shodě
+  nebo neznámém jménu srozumitelná hláška a nový dotaz.
+- Role zapsaná do listu `Uzivatele` ručně s háčky (např. „Vedoucí“) se při přihlášení bere správně.
+- **Poznámka** zadaná uživatelem (úprava záznamu i nové zboží) se zapisuje i do `Kontroly.poznamka`, spojená
+  s automatickým textem: „expirace 03/27 → 03/28; pozn.: …“; smazaná poznámka jako „poznámka smazána“.
+
+### Změněno
+- Dlaždice *Expirace – PC* se jmenuje **Expirace – řízení** (Úkoly, přehledy, správa). Skladník ji nevidí,
+  server mu akce `ukoly.seznam` / `ukoly.zadej` / `ukoly.zrus` odmítne (ověřeno testem).
+- **Barva podle podniku** v modulu Expirace: hlavička (čtečka), horní pruh řízení, horní lišta systému
+  (`theme-color`) a vybraný podnik v přepínači – Stavebniny DEK červená, Stachema modrá. V hlavičce je vždy název
+  podniku. Barvy pásem expirace se nemění. Barvy jsou v `web/js/podniky.js`.
+
 ## 0.3.0 – 2026-10-30 – Etapa 3: Úkoly, Blíží se expirace, plánovač
 
 ### Přidáno

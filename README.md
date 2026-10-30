@@ -35,7 +35,7 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
 - **Blíží se expirace** (čtečka): záznamy na lokacích podle zbývajících dní, filtr *Červené + expirované* / *Žluté* /
   *Vše*, akce *Na lokaci* (otevře kontrolu lokace), *Vydáno*, *Zlikvidováno* – zapíše se do logu s kým a kdy
   (i bez signálu přes frontu). Na Domů je počet červených + expirovaných.
-- **PC – Úkoly** (vedoucí, manažer, admin; v rozcestníku dlaždice *Expirace – PC*): nový úkol (komu, lokace – jednotlivé,
+- **PC – Úkoly** (vedoucí, manažer, admin; v rozcestníku dlaždice *Expirace – řízení*): nový úkol (komu, lokace – jednotlivé,
   čárkou, rozsah „od až do“ v rámci řady, volitelně zboží, termín, poznámka), přehled úkolů s průběhem, zrušení,
   pravidla plánovače. Ostatní položky postranního menu jsou zatím „připravujeme“.
 - **Plánovač** (každý den kolem 5:30): pro každý podnik a pravidlo (červené pásmo neověřené / lokace bez kontroly /
@@ -101,8 +101,9 @@ Setup můžeš spouštět opakovaně – doplní jen to, co chybí, nic nepřep�
 7. **Aplikace CS → Plánovač – zapnout denní spouštění (5:30)**. Google požádá o oprávnění ke spouštěčům – povol.
    Plánovač pak každé ráno vytvoří úkoly (stav spouštěče je vidět v PC části na obrazovce Úkoly).
 
-**Další uživatelé:** menu **Aplikace CS → Přidat uživatele** (jméno, role `skladnik` / `vedouci` / `manazer` / `admin`, PIN).
-**Zapomenutý PIN nebo zamčený účet:** **Aplikace CS → Změnit PIN / odemknout uživatele**.
+**Další uživatelé:** menu **Aplikace CS → Přidat uživatele** (jméno, role, PIN). Roli napiš číslem
+(1 skladník, 2 vedoucí, 3 manažer, 4 admin) nebo slovem – velká písmena ani háčky nevadí. Při chybě se dialog zeptá znovu.
+**Zapomenutý PIN nebo zamčený účet:** **Aplikace CS → Změnit PIN / odemknout uživatele** (jméno najde i bez háčků).
 Deaktivace uživatele: v listu `Uzivatele` přepiš `aktivni` na `FALSE`.
 (Správa uživatelů přímo v aplikaci přijde v etapě 4.)
 
@@ -150,6 +151,21 @@ Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí st�
 
 ---
 
+## Přechod na verzi 0.3.1 (opravy po testu, pro už nasazenou etapu 3)
+
+Web (verze **0.3.1**) se nasadí sám po pushi do `main`. V Apps Scriptu:
+
+1. V tabulce **Rozšíření → Apps Script**.
+2. **Nahraď celý obsah** tří souborů verzí z repa: [`Auth.gs`](apps-script/Auth.gs), [`Setup.gs`](apps-script/Setup.gs),
+   [`Kontrola.gs`](apps-script/Kontrola.gs). Ostatní soubory se nezměnily. Ulož (Ctrl+S).
+3. **Nasadit → Spravovat nasazení** → tužka → *Verze: **Nová verze*** → **Nasadit**. URL zůstane stejná.
+4. Setup ani spouštěč plánovače znovu spouštět nemusíš (listy ani oprávnění se nemění).
+5. Na čtečce aplikaci zavři a otevři **dvakrát** – v rozcestníku musí být verze **0.3.1**.
+
+Firemní barvy podniků (hlavička a horní pruh v Expiraci) jsou v [`web/js/podniky.js`](web/js/podniky.js) – `barva`.
+
+---
+
 ## Přechod na etapu 3 (pro už nasazenou etapu 2)
 
 Web (verze **0.3.0**) se nasadí sám po pushi do `main`. V Apps Scriptu udělej ručně:
@@ -178,7 +194,7 @@ Plánovač upravuješ v listu `Nastaveni` (`planovac_dni_bez_kontroly`, `planova
 
 ## Ověření etapy 3
 
-- [ ] Vedoucí na PC (rozcestník → *Expirace – PC* → Úkoly) zadá úkol konkrétnímu skladníkovi, např.
+- [ ] Vedoucí na PC (rozcestník → *Expirace – řízení* → Úkoly) zadá úkol konkrétnímu skladníkovi, např.
       `H1-A-07-1 až H1-A-12-4` – v přehledu je úkol s průběhem 0 / N.
 - [ ] Skladník ho na čtečce vidí v *Moje úkoly* (číslo na dlaždici), dá *Začít*, projde lokace (klepnutím
       na lokaci nebo skenem) a po poslední se objeví „Úkol splněn ✔“; v listu `Ukoly` je `splněný`, `splnil`, `splneno`.

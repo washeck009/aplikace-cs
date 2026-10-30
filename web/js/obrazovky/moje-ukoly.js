@@ -18,7 +18,7 @@ export async function zobrazMojeUkoly(koren, relace) {
   const vykresliSeznam = async (data, zprava) => {
     const ukoly = await sFrontou(data?.ukoly, podnik);
     if (!aktualni()) return;
-    koren.innerHTML = hlavicka('Moje úkoly', { zpet: '#/expirace' }) + `<main class="ph-body">
+    koren.innerHTML = hlavicka('Moje úkoly', { zpet: '#/expirace', podnik }) + `<main class="ph-body">
       <div class="seg">${PODNIKY.map((p) =>
         `<button data-podnik="${p.kod}" class="${p.kod === podnik ? 'on' : ''}">${esc(p.nazev)}</button>`).join('')}</div>
       ${zprava ? `<div class="upozorneni">${esc(zprava)}</div>` : ''}

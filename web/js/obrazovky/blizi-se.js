@@ -52,7 +52,7 @@ async function vykresli(koren, relace, zaklad, zprava) {
     .sort((a, b) => (zbyvaDni(a.expirace) ?? 1e9) - (zbyvaDni(b.expirace) ?? 1e9) || a.lokace.localeCompare(b.lokace));
   const nazevPodniku = PODNIKY.find((p) => p.kod === podnik)?.nazev || podnik;
 
-  koren.innerHTML = hlavicka('Blíží se expirace', { zpet: '#/expirace' }) + `<main class="ph-body">
+  koren.innerHTML = hlavicka('Blíží se expirace', { zpet: '#/expirace', podnik }) + `<main class="ph-body">
     <div class="seg">${PODNIKY.map((p) =>
       `<button data-podnik="${p.kod}" class="${p.kod === podnik ? 'on' : ''}">${esc(p.nazev)}</button>`).join('')}</div>
     <div class="chips filtry">${FILTRY.map(([k, t]) =>

@@ -59,6 +59,8 @@ kdy se skeny ztrácely (fungoval jen první sken). Při jakékoliv úpravě sken
    souběžný posluchač, který by skládal kód – dvě cesty si kradou text.
 5. **Konec skenu = Enter, nebo pauza 250 ms od posledního `input`** (některé kusy Enter neposílají; IME může text
    doručit až po Enteru). Během skládání IME (`compositionstart`–`compositionend`) se nečeká na pauzu.
+   Pauzou se ukončí jen **rychlý vstup** (celý text najednou přes IME, nebo znaky do ~50 ms po sobě); pomalé
+   ruční psaní do pole ukončí jen Enter nebo tlačítko OK (od verze 0.3.1).
 6. **Kamera jen za tlačítkem 📷** a po skenu, Zrušit i odchodu z aplikace se vždy vypne (zastavit všechny stopy streamu – `track.stop()`).
 
 Ladění na čtečce: diagnostika je v aplikaci skrytá; zapne se 5× klepnutím na číslo verze v rozcestníku (události

@@ -4,7 +4,7 @@ import { obnovDiagnostiku } from './diagnostika.js';
 import { odesliFrontu } from './fronta.js';
 import { odpojSkener } from './skener.js';
 import { relace, ulozDnesZapocteno, ulozRelaci } from './uloziste.js';
-import { aktualizujIkonuFronty, toast } from './ui.js';
+import { aktualizujIkonuFronty, nastavBarvuPodniku, toast } from './ui.js';
 import { zobrazPrihlaseni } from './obrazovky/prihlaseni.js';
 import { zobrazRozcestnik } from './obrazovky/rozcestnik.js';
 import { zobrazExpiraceDomu } from './obrazovky/expirace-domu.js';
@@ -30,6 +30,8 @@ function vykresli() {
   odpojSkener();
   // PC část má širokou stránku s postranním menu.
   document.body.classList.toggle('pc-rezim', !!r && location.hash.startsWith('#/pc'));
+  // Barvu podniku si nastaví obrazovky modulu Expirace (hlavička / PC rám); jinde výchozí.
+  nastavBarvuPodniku(null);
   if (!r) {
     zobrazPrihlaseni(koren);
   } else {

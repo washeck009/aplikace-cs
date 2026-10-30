@@ -2,6 +2,7 @@
 import { relace, smazRelaci } from './uloziste.js';
 import { volej } from './api.js';
 import { obsahFronty, odesliFrontu, pocetVeFronte, zahodZFronty } from './fronta.js';
+import { podnikPodleKodu } from './podniky.js';
 
 /** Escapuje text pro vložení do HTML. */
 export function esc(text) {
@@ -52,12 +53,36 @@ export function dialog({ titulek, text = '', html = '', tlacitka }) {
   });
 }
 
-/** HTML hlavičky: šipka zpět (cíl jako hash), název, neodeslané změny, odhlášení. */
-export function hlavicka(titulek, { zpet } = {}) {
+const VYCHOZI_BARVA = '#0b5cad';
+
+/**
+ * Barva horního pruhu systému (meta theme-color) a proměnné --podnik-barva / --podnik-text.
+ * Bez podniku = výchozí modrá aplikace. Volá app.js před každým vykreslením a hlavička / PC rám s podnikem.
+ */
+export function nastavBarvuPodniku(kod) {
+  const p = podnikPodleKodu(kod);
+  const koren = document.documentElement.style;
+  if (p) {
+    koren.setProperty('--podnik-barva', p.barva);
+    koren.setProperty('--podnik-text', p.barvaText);
+  } else {
+    koren.removeProperty('--podnik-barva');
+    koren.removeProperty('--podnik-text');
+  }
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', p ? p.barva : VYCHOZI_BARVA);
+}
+
+/**
+ * HTML hlavičky: šipka zpět (cíl jako hash), název, neodeslané změny, odhlášení.
+ * `podnik` (kód) = hlavička v barvě podniku s jeho názvem (modul Expirace).
+ */
+export function hlavicka(titulek, { zpet, podnik } = {}) {
   const r = relace();
-  return `<header class="ph-head">
+  const p = podnikPodleKodu(podnik);
+  if (p) nastavBarvuPodniku(p.kod);
+  return `<header class="ph-head${p ? ' s-podnikem' : ''}">
     ${zpet ? `<button class="zpet" data-cil="${esc(zpet)}" aria-label="Zpět">←</button>` : ''}
-    <div class="t">${esc(titulek)}</div>
+    <div class="t">${esc(titulek)}${p ? `<span class="ph-podnik">${esc(p.nazev)}</span>` : ''}</div>
     ${r ? `<button class="fronta" hidden aria-label="Neodeslané změny">⇡ <span></span></button>
       <button class="odhlasit" aria-label="Odhlásit">${esc(r.jmeno)} ⎋</button>` : ''}
   </header>`;

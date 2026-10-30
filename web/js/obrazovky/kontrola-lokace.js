@@ -98,7 +98,7 @@ function boxUkolu() {
 }
 
 function krokSken() {
-  koren.innerHTML = hlavicka('Kontrola – ' + nazevPodniku(), { zpet: s.ukol ? '#/expirace/ukoly' : '#/expirace' }) + `<main class="ph-body">
+  koren.innerHTML = hlavicka('Kontrola lokace', { zpet: s.ukol ? '#/expirace/ukoly' : '#/expirace', podnik: s.podnik }) + `<main class="ph-body">
     ${s.zaklad ? '' : `<div class="chyba">Data podniku nejsou v zařízení stažená${s.chybaZakladu ? ': ' + esc(s.chybaZakladu) : '.'}</div>
       <button class="btn block" data-stahnout>Stáhnout data podniku</button>`}
     ${s.ukol ? boxUkolu() : ''}
@@ -211,7 +211,7 @@ function krokLokace() {
   const L = s.lokace;
   const stitekLokace = !L.existuje ? ' · <span class="pill k">nová lokace – založí se k ověření</span>'
     : L.k_overeni ? ' · <span class="pill k">k ověření</span>' : '';
-  koren.innerHTML = hlavicka('Lokace', { zpet: HASH }) + `<main class="ph-body">
+  koren.innerHTML = hlavicka('Lokace', { zpet: HASH, podnik: s.podnik }) + `<main class="ph-body">
     <div class="loc">${esc(L.kod)}</div>
     <div class="hint">${esc(nazevPodniku())} · evidováno ${L.zaznamy.length} ${sklonuj(L.zaznamy.length, 'záznam', 'záznamy', 'záznamů')}${stitekLokace}</div>
     ${L.nacita ? '<div class="hint nacitam">Načítám aktuální stav…</div>' : ''}
@@ -425,7 +425,7 @@ function krokNovy() {
   skryjSkener(); // ve formuláři se píše do jeho polí
   const f = s.formular;
   const p = f.polozka;
-  koren.innerHTML = hlavicka('Nové zboží – ' + s.lokace.kod, { zpet: HASH }) + `<main class="ph-body">
+  koren.innerHTML = hlavicka('Nové zboží – ' + s.lokace.kod, { zpet: HASH, podnik: s.podnik }) + `<main class="ph-body">
     ${p ? `<div class="task"><b>${esc(p.nazev || `Položka ${p.cislo_polozky}`)}</b>
         <div class="hint">EAN ${esc(f.ean)} · č. pol. ${esc(p.cislo_polozky)}${p.k_doplneni ? ' · k doplnění' : ''}</div></div>`
       : `<div class="task varovani"><b>⚠ Neznámý EAN ${esc(f.ean)}</b>
@@ -498,7 +498,7 @@ function krokUprava() {
   skryjSkener();
   const f = s.formular;
   const z = s.lokace.zaznamy.find((x) => x.id === f.id);
-  koren.innerHTML = hlavicka('Upravit záznam', { zpet: HASH }) + `<main class="ph-body">
+  koren.innerHTML = hlavicka('Upravit záznam', { zpet: HASH, podnik: s.podnik }) + `<main class="ph-body">
     <div class="task"><b>${esc(nazevZbozi(z, s.zaklad))}</b>
       <div class="hint">${esc(s.lokace.kod)} · EAN ${esc(z.ean)} · č. pol. ${esc(z.cislo_polozky)}</div></div>
     ${poleFormulare(f, { uprava: true, fotoUrl: z.foto_url })}

@@ -39,6 +39,30 @@ function maRoli_(uzivatel, minimalniRole) {
   return (ROLE_UROVEN[uzivatel.role] || 0) >= (ROLE_UROVEN[minimalniRole] || 99);
 }
 
+// Role podle čísla v dialogu (1–4) a české názvy pro hlášky.
+const ROLE_PODLE_CISLA = ['skladnik', 'vedouci', 'manazer', 'admin'];
+const NAZVY_ROLI = { skladnik: 'skladník', vedouci: 'vedoucí', manazer: 'manažer', admin: 'admin (správce)' };
+
+function bezDiakritiky_(text) {
+  return text_(text).normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+/**
+ * Role z dialogu nebo z listu: „skladník“, „Vedoucí“, „MANAŽER“, „správce“ i číslo 1–4.
+ * Vrátí klíč role (skladnik, vedouci, manazer, admin), nebo '' když roli nezná.
+ */
+function normalizujRoli_(vstup) {
+  const t = bezDiakritiky_(vstup).toLowerCase().replace(/\s+/g, '');
+  if (/^[1-4]$/.test(t)) return ROLE_PODLE_CISLA[Number(t) - 1];
+  if (t === 'spravce' || t === 'administrator') return 'admin';
+  return ROLE_UROVEN[t] ? t : '';
+}
+
+/** Role uživatele z listu; neznámá role zůstane, jak je (oprávnění pak nemá žádné). */
+function roleUzivatele_(u) {
+  return normalizujRoli_(u.role) || text_(u.role);
+}
+
 /* ---------- Tokeny ---------- */
 
 function vytvorToken_(uzivatel) {
@@ -51,7 +75,7 @@ function vytvorToken_(uzivatel) {
   return {
     token: token,
     jmeno: text_(uzivatel.jmeno),
-    role: text_(uzivatel.role),
+    role: roleUzivatele_(uzivatel),
     platnost: platnost.toISOString()
   };
 }
@@ -102,7 +126,7 @@ function overToken_(token) {
   return {
     id: t.id,
     jmeno: text_(u.jmeno),
-    role: text_(u.role),
+    role: roleUzivatele_(u),
     platnost: new Date(t.platnost).toISOString(),
     _klic: klic
   };

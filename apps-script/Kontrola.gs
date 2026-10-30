@@ -267,7 +267,11 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
       }
     }
     if (radek.pocet_ks !== undefined) r.pocet_ks = cisloKs_(radek.pocet_ks);
-    if (radek.poznamka !== undefined) r.poznamka = text_(radek.poznamka).slice(0, 500);
+    // Čtečka posílá poznámku jen, když ji uživatel změnil – pak patří i do Kontroly.
+    if (radek.poznamka !== undefined) {
+      r.poznamka = text_(radek.poznamka).slice(0, 500);
+      poznamky.push(r.poznamka ? 'pozn.: ' + r.poznamka : 'poznámka smazána');
+    }
     if (text_(radek.foto_url)) r.foto_url = text_(radek.foto_url);
 
     const stav = text_(radek.stav);
@@ -311,7 +315,7 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
       if (poznamka) existujici.poznamka = poznamka;
       if (foto) existujici.foto_url = foto;
       uloz(existujici);
-      zaloguj(bylNaLokaci ? 'potvrzeno' : 'nový', existujici);
+      zaloguj(bylNaLokaci ? 'potvrzeno' : 'nový', existujici, poznamka ? 'pozn.: ' + poznamka : '');
       souhrn[bylNaLokaci ? 'potvrzeno' : 'novy']++;
       return;
     }
@@ -341,7 +345,7 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
     noveZaznamy.push(r);
     podleId[id] = r;
     podleKlice[klicZaznamu_(kod, ean, exp.text)] = r;
-    zaloguj('nový', r);
+    zaloguj('nový', r, poznamka ? 'pozn.: ' + poznamka : '');
     souhrn.novy++;
   };
 

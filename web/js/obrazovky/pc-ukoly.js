@@ -25,7 +25,7 @@ export async function zobrazPcUkoly(koren, relace) {
     <h1>Úkoly – ${esc(nazev)}</h1>
     <div class="sub">Ruční úkoly zadávají vedoucí, manažer a správce. Plánovač přidává úkoly každé ráno sám.
       Lokace se odškrtne, když ji po zadání kdokoliv zkontroluje; s poslední lokací je úkol splněný.</div>
-    <div id="pcObsah"><p class="hint">Načítám…</p></div>`);
+    <div id="pcObsah"><p class="hint">Načítám…</p></div>`, podnik);
   koren.querySelectorAll('[data-podnik]').forEach((b) => b.addEventListener('click', () => {
     ulozPodnik(b.dataset.podnik);
     zobrazPcUkoly(koren, relace);
