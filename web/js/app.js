@@ -1,14 +1,17 @@
-// Start aplikace: výběr obrazovky podle adresy (#/...), kontrola přihlášení, service worker.
+// Start aplikace: výběr obrazovky podle adresy (#/...), kontrola přihlášení, offline fronta, service worker.
 import { volej } from './api.js';
-import { relace, ulozRelaci } from './uloziste.js';
-import { toast } from './ui.js';
+import { odesliFrontu } from './fronta.js';
+import { relace, ulozDnesZapocteno, ulozRelaci } from './uloziste.js';
+import { aktualizujIkonuFronty, toast } from './ui.js';
 import { zobrazPrihlaseni } from './obrazovky/prihlaseni.js';
 import { zobrazRozcestnik } from './obrazovky/rozcestnik.js';
 import { zobrazExpiraceDomu } from './obrazovky/expirace-domu.js';
+import { zobrazKontroluLokace } from './obrazovky/kontrola-lokace.js';
 
 const OBRAZOVKY = {
   '#/': zobrazRozcestnik,
-  '#/expirace': zobrazExpiraceDomu
+  '#/expirace': zobrazExpiraceDomu,
+  '#/expirace/kontrola': zobrazKontroluLokace
 };
 
 function vykresli() {
@@ -18,6 +21,8 @@ function vykresli() {
     zobrazPrihlaseni(koren);
   } else {
     (OBRAZOVKY[location.hash] || zobrazRozcestnik)(koren, r);
+    // Po přihlášení mohou odejít položky, které čekaly na tohoto uživatele.
+    odesliFrontu();
   }
   window.scrollTo(0, 0);
 }
@@ -27,6 +32,20 @@ window.addEventListener('cs:prekresli', vykresli);
 window.addEventListener('cs:odhlaseno', (e) => {
   toast(e.detail || 'Přihlášení vypršelo, přihlas se znovu.');
   vykresli();
+});
+window.addEventListener('cs:fronta', (e) => aktualizujIkonuFronty(e.detail));
+
+// Dávka z kontroly lokace dorazila na server – souhrn a nový dnešní počet.
+window.addEventListener('cs:davka-odeslana', (e) => {
+  const { davka, autor, vysledek } = e.detail;
+  if (relace()?.jmeno !== autor) return;
+  ulozDnesZapocteno(autor, davka.podnik, vysledek.dnes);
+  const preskoceno = vysledek.souhrn?.preskoceno
+    ? ` (${vysledek.souhrn.preskoceno} řádků přeskočeno – mezitím se změnily)` : '';
+  toast(vysledek.zapocteno
+    ? `Lokace ${vysledek.lokace} odeslána a započtena (dnes ${vysledek.dnes}).${preskoceno}`
+    : `Lokace ${vysledek.lokace} odeslána – dnes už byla započtena, počítá se jen 1×.${preskoceno}`);
+  if (location.hash === '#/expirace') vykresli();
 });
 
 vykresli();

@@ -44,7 +44,8 @@ export async function volej(action, data = {}, { token, timeout = 25000 } = {}) 
     throw new ChybaApi('Server vrátil neplatnou odpověď – zkontroluj nasazení Apps Scriptu.', 'SERVER');
   }
   if (!odp.ok) {
-    if (odp.kod === 'TOKEN') {
+    // Odhlásit jen při neplatném tokenu aktuálního přihlášení (fronta posílá i starší tokeny).
+    if (odp.kod === 'TOKEN' && tok && tok === relace()?.token) {
       smazRelaci();
       window.dispatchEvent(new CustomEvent('cs:odhlaseno', { detail: odp.error }));
     }

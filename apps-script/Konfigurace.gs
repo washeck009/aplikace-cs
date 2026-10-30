@@ -24,6 +24,21 @@ const ZAMEK_MINUT = 10;
 // Klíč tokenu ve Script Properties = prefix + SHA-256 tokenu (samotný token se neukládá).
 const PREFIX_TOKENU = 'token_';
 
+// Zpracované dávky z čtečky (idempotence): Script Properties `davka_<id>`, drží se 30 dní.
+const PREFIX_DAVKY = 'davka_';
+const DAVKY_DRZET_DNI = 30;
+
+// Dávka z offline fronty smí nést čas kontroly nejvýš 2 dny zpět, starší dostane čas přijetí.
+const ZPETNY_ZAPIS_DNI = 2;
+
+// Stavy záznamů (list Zaznamy).
+const STAV = {
+  NA_LOKACI: 'Na lokaci',
+  NENI: 'Není na lokaci',
+  VYDANO: 'Vydáno',
+  ZLIKVIDOVANO: 'Zlikvidováno'
+};
+
 // Listy a jejich sloupce. Pořadí slouží jen pro založení – kód vždy čte podle názvů.
 const LISTY = {
   Uzivatele: ['id', 'jmeno', 'role', 'pin_hash', 'pin_salt', 'aktivni', 'chybne_pokusy', 'zamceno_do'],

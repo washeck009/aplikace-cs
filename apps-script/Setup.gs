@@ -9,7 +9,20 @@ function onOpen() {
     .addSeparator()
     .addItem('Přidat uživatele', 'menuPridatUzivatele')
     .addItem('Změnit PIN / odemknout uživatele', 'menuZmenitPin')
+    .addSeparator()
+    .addItem('Povolit fotky (Google Disk)', 'menuFotky')
     .addToUi();
+}
+
+/**
+ * Vyžádá oprávnění ke Google Disku a založí složky na fotky obou podniků (pokud nejsou).
+ * Bez tohoto povolení webová aplikace fotky nenahraje.
+ */
+function menuFotky() {
+  const slozky = Object.keys(PODNIKY).map(function (podnik) {
+    return PODNIKY[podnik] + ': ' + slozkaFotek_(podnik).getName();
+  });
+  oznam_('Fotky jsou povolené. Složky na Google Disku:\n' + slozky.join('\n'));
 }
 
 function menuSetup() {

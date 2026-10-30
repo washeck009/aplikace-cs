@@ -4,7 +4,8 @@ import { PODNIKY } from './podniky.js';
 const KLICE = {
   relace: 'cs.relace',
   jmeno: 'cs.posledniJmeno',
-  podnik: 'cs.podnik'
+  podnik: 'cs.podnik',
+  dnes: 'cs.dnesZapocteno'
 };
 
 function cti(klic) {
@@ -46,3 +47,14 @@ export function zvolenyPodnik() {
   return PODNIKY.some((x) => x.kod === p) ? p : PODNIKY[0].kod;
 }
 export const ulozPodnik = (podnik) => pis(KLICE.podnik, podnik);
+
+// Poslední známý počet dnes započtených lokací (Domů ho ukáže i bez signálu).
+const dnesKlic = (jmeno, podnik) => `${new Date().toDateString()}|${jmeno}|${podnik}`;
+
+export function dnesZapocteno(jmeno, podnik) {
+  const ulozene = cti(KLICE.dnes);
+  return ulozene?.klic === dnesKlic(jmeno, podnik) ? ulozene.pocet : null;
+}
+
+export const ulozDnesZapocteno = (jmeno, podnik, pocet) =>
+  pis(KLICE.dnes, { klic: dnesKlic(jmeno, podnik), pocet });

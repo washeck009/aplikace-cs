@@ -14,7 +14,11 @@ function mapaAkci_() {
     'login': { role: null, fn: akceLogin_ },
     'logout': { role: 'skladnik', fn: akceLogout_ },
     'ja': { role: 'skladnik', fn: akceJa_ },
-    'data.zaklad': { role: 'skladnik', fn: akceDataZaklad_ }
+    'data.zaklad': { role: 'skladnik', fn: akceDataZaklad_ },
+    'lokace.nacti': { role: 'skladnik', fn: akceLokaceNacti_ },
+    'lokace.dokonci': { role: 'skladnik', fn: akceLokaceDokonci_ },
+    'kontroly.dnes': { role: 'skladnik', fn: akceKontrolyDnes_ },
+    'foto.nahraj': { role: 'skladnik', fn: akceFotoNahraj_ }
   };
 }
 
@@ -69,7 +73,10 @@ function nactiNastaveni_(podnik) {
   return vysledek;
 }
 
-/** Číselník, lokace a nastavení podniku – klient si je uloží do cache. */
+/**
+ * Číselník, lokace, záznamy „Na lokaci“ a nastavení podniku – klient si je uloží do cache,
+ * aby šlo lokaci zobrazit i bez signálu.
+ */
 function akceDataZaklad_(data) {
   const podnik = overPodnik_(data.podnik);
 
@@ -98,6 +105,10 @@ function akceDataZaklad_(data) {
       };
     });
 
+  const zaznamy = nactiList_('Zaznamy').radky
+    .filter(function (r) { return text_(r.podnik) === podnik && jeNaLokaci_(r); })
+    .map(zaznamProKlienta_);
+
   const nastaveni = nactiNastaveni_(podnik);
   NASTAVENI_JEN_SERVER.forEach(function (k) { delete nastaveni[k]; });
 
@@ -105,6 +116,7 @@ function akceDataZaklad_(data) {
     podnik: podnik,
     polozky: polozky,
     lokace: lokace,
+    zaznamy: zaznamy,
     nastaveni: nastaveni,
     stazeno: new Date().toISOString()
   };

@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.2.0 – 2026-10-30 – Etapa 2: Kontrola lokace
+
+### Přidáno
+- Čtečka – obrazovka **Kontrola lokace**: skenovací pole s trvalým fokusem a Enterem (skener Urovo), bez vyskakující
+  klávesnice (⌨ pro ruční zadání), skenování kamerou (`BarcodeDetector`, záloha `@zxing/library` 0.21.3 z CDN
+  s kontrolním součtem). EAN = jen číslice 8/12/13/14 znaků, jinak lokace.
+- Seznam záznamů „Na lokaci“ s pásmem, zbývajícími dny, ks, posledním ověřením a poznámkou; ✓ Je tu / ✗ Není tu /
+  ✎ Upravit (expirace, ks, poznámka, stav Vydáno/Zlikvidováno, fotka).
+- Přidání zboží (EAN → číselník → MM/RR → ks → poznámka → fotka), neznámý EAN s ručním číslem položky a `k_doplneni`,
+  zákaz duplicity klíče podnik + lokace + EAN + expirace.
+- *Lokace hotová* s dialogem „Neoznačené řádky“ / *Vše ostatní je tu*, *Bez expiračního zboží* s potvrzením.
+- Backend: `lokace.nacti`, `lokace.dokonci` (jedna dávka = změny lokace + zápis do `Kontroly`, `zapocteno` max. 1× denně
+  na uživatele a lokaci, idempotence podle ID dávky), `kontroly.dnes`, `foto.nahraj` (base64 → Google Disk).
+- Offline fronta v IndexedDB: fotky a dávky se odesílají na pozadí, opakují se s rostoucí prodlevou, čekají na
+  přihlášení autora; ikona ⇡ s počtem neodeslaných v hlavičce a seznam fronty.
+- Fotky zmenšené v prohlížeči (max. 1600 px, JPEG 0,8), složka na Disku se založí sama, sdílení „kdokoli s odkazem“.
+- Domů: aktivní dlaždice Kontrola lokace, počet dnes započtených lokací (+ čekající na odeslání).
+- Menu v tabulce *Povolit fotky (Google Disk)*.
+
+### Poznámky
+- `data.zaklad` nově posílá i záznamy „Na lokaci“ – lokace jde zobrazit i bez signálu.
+- Existující záznam se stejným klíčem ve stavu „Není na lokaci“ / Vydáno / Zlikvidováno se při přidání vrátí na lokaci
+  (nevznikne druhý řádek se stejným klíčem).
+- Neznámá lokace se zakládá až při dokončení (ne při pouhém naskenování). Zóna = první písmeno kódu (H/P).
+- `zapocteno = TRUE` má jen první řádek dávky v `Kontroly` – počet TRUE = počet započtených kontrol.
+- Úkoly se při dokončení lokace zatím neodškrtávají – přijde v etapě 3.
+
 ## 0.1.1 – 2026-10-30
 
 ### Změněno

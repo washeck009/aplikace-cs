@@ -65,6 +65,18 @@ function upravRadek_(nazev, cisloRadku, zmeny) {
   });
 }
 
+/**
+ * Zapíše zpět celé řádky načtené přes nactiList_ (objekty s _radek, upravené v paměti).
+ * Objekt z nactiList_ má všechny sloupce, takže se nic nesmaže.
+ */
+function zapisRadky_(tabulka, objekty) {
+  objekty.forEach(function (o) {
+    tabulka.list.getRange(o._radek, 1, 1, tabulka.hlavicka.length).setValues([tabulka.hlavicka.map(function (h) {
+      return (h in o && o[h] !== null && o[h] !== undefined) ? o[h] : '';
+    })]);
+  });
+}
+
 /** Spustí funkci pod zámkem skriptu (všechny zápisy do tabulky). */
 function sZamkem_(fn) {
   const zamek = LockService.getScriptLock();

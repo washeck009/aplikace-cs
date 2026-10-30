@@ -4,13 +4,29 @@ Webová aplikace (PWA) pro centrální sklad. Hlavní aplikace je rozcestník mo
 **Kontrola expirací** pro podniky Stavebniny DEK a Stachema. Podrobné zadání: [docs/specifikace.md](docs/specifikace.md),
 vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/CHANGELOG.md).
 
-## Co je hotové (etapa 1 – základ)
+## Co je hotové
 
+**Etapa 1 – základ**
 - Google tabulka s listy podle specifikace, výchozí nastavení obou podniků, první administrátor.
 - Přihlášení jménem a 4místným PINem, platnost do konce dne, po 5 chybných PINech zámek účtu na 10 minut.
 - PWA instalovatelná na plochu čtečky: přihlášení → rozcestník → Expirace → Domů s přepínačem DEK / Stachema.
-  Tři dlaždice na Domů (Kontrola lokace, Moje úkoly, Blíží se expirace) zatím nic nedělají – přijdou v etapách 2 a 3.
-- Po přihlášení se číselník, lokace a nastavení podniku uloží do zařízení (pro skenování při slabém signálu).
+- Po přihlášení se číselník, lokace, záznamy na lokacích a nastavení podniku uloží do zařízení (pro práci při slabém signálu).
+
+**Etapa 2 – Kontrola lokace (čtečka)**
+- Skenovací pole drží fokus a reaguje na Enter (hardwarový skener Urovo v režimu klávesnice). Na čtečce nevyskakuje
+  klávesnice; ⌨ ji zapne pro ruční zadání, 📷 skenuje kamerou.
+- Po naskenování lokace se ukáže evidované zboží s pásmem, zbývajícími dny, kusy, posledním ověřením a poznámkou.
+  U každého řádku ✓ Je tu / ✗ Není tu / ✎ Upravit (expirace, kusy, poznámka, Vydáno / Zlikvidováno, fotka).
+- Přidání zboží skenem EAN, expirace MM/RR s automatickým lomítkem; neznámý EAN → ruční číslo položky a příznak
+  „k doplnění“. Stejné zboží se stejnou expirací se nezaloží dvakrát – existující záznam se označí ✓.
+- **Lokace hotová** (dialog pro neoznačené řádky) a **Bez expiračního zboží** (s potvrzením).
+- Celá lokace odchází na server jednou dávkou. Bez signálu se dávka uloží do zařízení a odešle se sama;
+  v hlavičce je žlutá ikona ⇡ s počtem neodeslaných (klepnutím seznam a *Odeslat teď*).
+- Lokace se započítá max. 1× za den na uživatele; na Domů je počet dnes započtených lokací.
+- Fotky se zmenší v čtečce (max. 1600 px) a uloží na Google Disk, sdílené „kdokoli s odkazem“.
+- Neznámá lokace se při dokončení založí s příznakem `k_overeni`.
+
+Dlaždice *Moje úkoly* a *Blíží se expirace* přijdou v etapě 3.
 
 ## Struktura repa
 
@@ -43,8 +59,8 @@ Celé nastavení se dělá jednou. Potřebuješ osobní Google účet (Gmail) a 
    - zkontroluj **Časové pásmo: (GMT+01:00) Praha**.
 4. Zpět v **Editoru** (ikona `< >`) otevři `appsscript.json`, smaž obsah a vlož obsah souboru
    [`apps-script/appsscript.json`](apps-script/appsscript.json).
-5. Pro každý soubor `.gs` ze složky [`apps-script/`](apps-script/) – `Api.gs`, `Auth.gs`, `Konfigurace.gs`,
-   `Listy.gs`, `Setup.gs`:
+5. Pro každý soubor `.gs` ze složky [`apps-script/`](apps-script/) – `Api.gs`, `Auth.gs`, `Fotky.gs`,
+   `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`, `Setup.gs`:
    - klikni na **+** vedle *Soubory* → **Skript**, zadej název bez `.gs` (např. `Api`),
    - smaž předvyplněný obsah a vlož celý obsah souboru z repa.
 6. Výchozí soubor `Kód.gs` smaž (tři tečky vedle názvu → *Smazat*).
@@ -64,6 +80,10 @@ Celé nastavení se dělá jednou. Potřebuješ osobní Google účet (Gmail) a 
    `Import_stav_lokaci` a `Log_chyb`, a že v `Nastaveni` jsou hodnoty pro `DEK` i `STA`.
 
 Setup můžeš spouštět opakovaně – doplní jen to, co chybí, nic nepřepíše.
+
+6. **Aplikace CS → Povolit fotky (Google Disk)**. Google požádá o další oprávnění (přístup k Disku) – povol stejně
+   jako v bodu 3. Skript založí na tvém Disku složky *Aplikace CS – fotky – Stavebniny DEK* a *… – Stachema*
+   a jejich ID zapíše do listu `Nastaveni` (`slozka_fotky_id`). Chceš-li jinou složku, přepiš ID v `Nastaveni`.
 
 **Další uživatelé:** menu **Aplikace CS → Přidat uživatele** (jméno, role `skladnik` / `vedouci` / `manazer` / `admin`, PIN).
 **Zapomenutý PIN nebo zamčený účet:** **Aplikace CS → Změnit PIN / odemknout uživatele**.
@@ -114,6 +134,38 @@ Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí st�
 
 ---
 
+## Přechod na etapu 2 (pro už nasazenou etapu 1)
+
+Web se aktualizuje sám po pushi do `main`. Backend v Apps Scriptu je potřeba aktualizovat ručně:
+
+1. V tabulce **Rozšíření → Apps Script**.
+2. Přidej dva nové soubory (**+** vedle *Soubory* → **Skript**): `Kontrola` a `Fotky` – vlož do nich obsah
+   [`apps-script/Kontrola.gs`](apps-script/Kontrola.gs) a [`apps-script/Fotky.gs`](apps-script/Fotky.gs).
+3. Nahraď celý obsah změněných souborů verzí z repa: `Api.gs`, `Konfigurace.gs`, `Listy.gs`, `Setup.gs`
+   (`Auth.gs` a `appsscript.json` se nezměnily). Ulož (Ctrl+S).
+4. Vrať se do tabulky, **obnov stránku** (F5) a spusť **Aplikace CS → Povolit fotky (Google Disk)**.
+   Povol přístup k Disku (*Rozšířená nastavení → Přejít na Aplikace CS → Povolit*). Bez tohoto kroku se fotky
+   nenahrají – zůstanou čekat ve frontě čtečky.
+5. **Nasadit → Spravovat nasazení** → tužka → *Verze: **Nová verze*** → **Nasadit**. URL zůstane stejná,
+   `web/config.js` se nemění.
+6. Na čtečce aplikaci zavři a otevři **dvakrát** (poprvé se na pozadí stáhne nová verze, podruhé se spustí).
+   V rozcestníku musí být verze **0.2.0**.
+
+Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
+
+---
+
+## Ověření etapy 2
+
+- [ ] Na čtečce naskenuju štítek lokace hardwarovým skenerem → zobrazí se evidované zboží.
+- [ ] Označím řádky ✓ / ✗, jeden upravím (✎), přidám zboží známým EAN i neznámým EAN (zadám číslo položky).
+- [ ] *Lokace hotová* → v tabulce se změní `Zaznamy` (overil/overeno, stav, nové řádky) a přibudou řádky v `Kontroly`
+      (u prvního `zapocteno = TRUE`); neznámý EAN je v `Polozky` s `k_doplneni = TRUE`.
+- [ ] Druhé dokončení stejné lokace týž den: toast „dnes už byla započtena“, v `Kontroly` už `zapocteno = FALSE`.
+- [ ] Režim letadlo: dokončím lokaci → v hlavičce ⇡ 1; po vypnutí režimu letadlo se dávka odešle a ikona zmizí.
+- [ ] Fotka u nového zboží: v `Zaznamy.foto_url` je odkaz, který se otevře i v anonymním okně.
+- [ ] Na Domů sedí *Zkontrolované lokace dnes*.
+
 ## Ověření etapy 1
 
 - [ ] Na čtečce otevřu adresu GitHub Pages a přidám aplikaci na plochu.
@@ -129,5 +181,9 @@ Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí st�
 - **Při každé změně ve `web/` zvyš verzi** v `web/sw.js` (`VERZE`) i ve `web/js/verze.js` – jinak čtečky drží starou cache.
 - API: `POST` na URL webové aplikace, `Content-Type: text/plain`, tělo `{"action", "token", "data"}`,
   odpověď `{"ok": true, "data"}` nebo `{"ok": false, "error", "kod"}`.
-  Akce: `uzivatele.seznam`, `login`, `logout`, `ja`, `data.zaklad`.
+  Akce: `uzivatele.seznam`, `login`, `logout`, `ja`, `data.zaklad`, `lokace.nacti`, `lokace.dokonci`,
+  `kontroly.dnes`, `foto.nahraj`.
+- `lokace.dokonci` je idempotentní podle `id_davky`: zpracované dávky si server pamatuje 30 dní ve Script Properties
+  (`davka_<id>`), opakované odeslání vrátí původní výsledek.
+- Čas kontroly z offline fronty se bere z čtečky, nejvýš 2 dny zpět (starší dávka dostane čas přijetí).
 - Neočekávané chyby serveru se zapisují do listu `Log_chyb`.

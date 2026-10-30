@@ -1,15 +1,16 @@
-// Modul Expirace – obrazovka Domů: přepínač podniku, dlaždice, stav stažených dat podniku.
+// Modul Expirace – obrazovka Domů: přepínač podniku, dlaždice, dnešní kontroly, stav stažených dat podniku.
 import { volej } from '../api.js';
 import { nactiZaklad, ulozZaklad } from '../db.js';
+import { cekajiciDavky } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
-import { ulozPodnik, zvolenyPodnik } from '../uloziste.js';
-import { esc, hlavicka, napojHlavicku, toast } from '../ui.js';
+import { dnesZapocteno, ulozDnesZapocteno, ulozPodnik, zvolenyPodnik } from '../uloziste.js';
+import { esc, hlavicka, napojHlavicku, prejdi, toast } from '../ui.js';
 
 // Data podniku se znovu stahují po přihlášení a pak nejdéle po 30 minutách.
 const OBNOVA_MS = 30 * 60 * 1000;
 
 const DLAZDICE = [
-  { ikona: '📷', nazev: 'Kontrola lokace', popis: 'Naskenuj lokaci a ověř zboží' },
+  { ikona: '📷', nazev: 'Kontrola lokace', popis: 'Naskenuj lokaci a ověř zboží', cil: '#/expirace/kontrola' },
   { ikona: '📋', nazev: 'Moje úkoly', popis: 'Od vedoucích a z plánovače' },
   { ikona: '⏳', nazev: 'Blíží se expirace', popis: 'Seřazeno podle data, pro obchůzku' }
 ];
@@ -24,11 +25,13 @@ export function zobrazExpiraceDomu(koren, relace) {
   koren.innerHTML = hlavicka('Expirace', { zpet: '#/' }) + `<main class="ph-body">
     <div class="seg">${PODNIKY.map((p) =>
       `<button data-podnik="${p.kod}" class="${p.kod === podnik ? 'on' : ''}">${esc(p.nazev)}</button>`).join('')}</div>
-    ${DLAZDICE.map((d) => `<button class="tile pripravujeme">
+    ${DLAZDICE.map((d) => `<button class="tile${d.cil ? '' : ' pripravujeme'}"${d.cil ? ` data-cil="${d.cil}"` : ''}>
       <span class="ic">${d.ikona}</span>
       <div><div class="tt">${d.nazev}</div><div class="ss">${d.popis}</div></div>
-      <span class="tag">připravujeme</span>
+      ${d.cil ? '' : '<span class="tag">připravujeme</span>'}
     </button>`).join('')}
+    <div class="h">Dnes</div>
+    <div class="task" id="infoDnes"><span class="hint">Načítám…</span></div>
     <div class="h">Data podniku</div>
     <div class="task" id="infoData"><span class="hint">Načítám…</span></div>
   </main>`;
@@ -38,19 +41,47 @@ export function zobrazExpiraceDomu(koren, relace) {
     ulozPodnik(b.dataset.podnik);
     zobrazExpiraceDomu(koren, relace);
   }));
+  koren.querySelectorAll('[data-cil]').forEach((b) => b.addEventListener('click', () => prejdi(b.dataset.cil)));
   koren.querySelectorAll('.pripravujeme').forEach((b) => b.addEventListener('click', () =>
     toast('Připravujeme – bude v další verzi.')));
 
-  obnovData(koren, podnik, relace, cislo, false);
+  const aktualni = () => cislo === vykresleni && koren.querySelector('#infoData');
+  obnovData(koren, podnik, relace, aktualni, false);
+  obnovDnes(koren, podnik, relace, aktualni);
+}
+
+/** Počet dnes započtených lokací: hned poslední známý, pak ze serveru; plus co čeká ve frontě. */
+async function obnovDnes(koren, podnik, relace, aktualni) {
+  const vypis = async (pocet) => {
+    if (!aktualni()) return;
+    const dnes = new Date().toDateString();
+    const cekajici = new Set((await cekajiciDavky())
+      .filter((p) => p.autor === relace.jmeno && p.data.podnik === podnik && new Date(p.data.cas).toDateString() === dnes)
+      .map((p) => p.data.lokace.toUpperCase()));
+    const zaklad = await nactiZaklad(podnik);
+    const cil = zaklad?.nastaveni?.cil_kontrol_tyden;
+    if (!aktualni()) return;
+    koren.querySelector('#infoDnes').innerHTML = `Zkontrolované lokace dnes: <b>${pocet ?? '–'}</b>${cil ? ` · cíl týdne ${esc(cil)}` : ''}
+      ${cekajici.size ? `<div class="hint">Čeká na odeslání: ${cekajici.size} ${cekajici.size === 1 ? 'lokace' : 'lokací'}</div>` : ''}
+      <div class="hint">Tatáž lokace se za den počítá jen jednou.</div>`;
+  };
+  await vypis(dnesZapocteno(relace.jmeno, podnik));
+  try {
+    const { zapocteno } = await volej('kontroly.dnes', { podnik });
+    ulozDnesZapocteno(relace.jmeno, podnik, zapocteno);
+    await vypis(zapocteno);
+  } catch {
+    // Bez signálu zůstane poslední známý počet.
+  }
 }
 
 /** Ukáže data z cache a podle potřeby je stáhne znovu ze serveru. */
-async function obnovData(koren, podnik, relace, cislo, vynutit) {
-  const aktualni = () => cislo === vykresleni && koren.querySelector('#infoData');
+async function obnovData(koren, podnik, relace, aktualni, vynutit) {
   const cache = await nactiZaklad(podnik);
-  if (cache && aktualni()) vypisInfo(koren, podnik, relace, cislo, cache, '');
+  if (cache && aktualni()) vypisInfo(koren, podnik, relace, aktualni, cache, '');
 
   const zastarale = !cache
+    || !cache.zaznamy
     || new Date(cache.stazeno) < new Date(relace.prihlaseno)
     || Date.now() - new Date(cache.stazeno) > OBNOVA_MS;
   if (!vynutit && !zastarale) return;
@@ -58,17 +89,18 @@ async function obnovData(koren, podnik, relace, cislo, vynutit) {
   try {
     const zaklad = await volej('data.zaklad', { podnik });
     await ulozZaklad(zaklad);
-    if (aktualni()) vypisInfo(koren, podnik, relace, cislo, zaklad, '');
+    if (aktualni()) vypisInfo(koren, podnik, relace, aktualni, zaklad, '');
   } catch (e) {
     if (e.kod === 'TOKEN' || !aktualni()) return;
-    vypisInfo(koren, podnik, relace, cislo, cache, e.message);
+    vypisInfo(koren, podnik, relace, aktualni, cache, e.message);
   }
 }
 
-function vypisInfo(koren, podnik, relace, cislo, zaklad, chyba) {
+function vypisInfo(koren, podnik, relace, aktualni, zaklad, chyba) {
   const el = koren.querySelector('#infoData');
   const n = zaklad?.nastaveni || {};
   el.innerHTML = (zaklad ? `Číselník: <b>${zaklad.polozky.length}</b> položek · lokací: <b>${zaklad.lokace.length}</b>
+      · na lokacích: <b>${zaklad.zaznamy?.length ?? '?'}</b> záznamů
       <div class="hint">Pásma: červená ≤ ${esc(n.hranice_cervena ?? '?')} dní, žlutá ≤ ${esc(n.hranice_zluta ?? '?')} dní</div>
       <div class="hint">Staženo ${esc(formatCas(zaklad.stazeno))}${chyba ? ' (starší data z tohoto zařízení)' : ''}</div>`
     : '<span class="hint">Data podniku zatím nejsou stažená.</span>')
@@ -76,7 +108,7 @@ function vypisInfo(koren, podnik, relace, cislo, zaklad, chyba) {
     + '<button class="odkaz" data-obnovit>Stáhnout znovu</button>';
   el.querySelector('[data-obnovit]').addEventListener('click', () => {
     el.innerHTML = '<span class="hint">Stahuji…</span>';
-    obnovData(koren, podnik, relace, cislo, true);
+    obnovData(koren, podnik, relace, aktualni, true);
   });
 }
 
