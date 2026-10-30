@@ -27,7 +27,20 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
 - Fotky se zmenší v čtečce (max. 1600 px) a uloží na Google Disk, sdílené „kdokoli s odkazem“.
 - Neznámá lokace se při dokončení založí s příznakem `k_overeni`.
 
-Dlaždice *Moje úkoly* a *Blíží se expirace* přijdou v etapě 3.
+**Etapa 3 – Úkoly, Blíží se expirace, plánovač**
+- **Moje úkoly** (čtečka): úkoly pro mě a pro „kdokoliv“ ve zvoleném podniku, lokace podle trasy (hala → řada →
+  sloupec → nosník), hotové přeškrtnuté, průběh x z y. *Začít / pokračovat* otevře kontrolu s nabídkou zbývajících
+  lokací (klepnutím nebo skenem). Dokončení lokace (kýmkoliv) ji odškrtne ve všech otevřených úkolech; s poslední
+  lokací je úkol splněný. Na Domů je počet otevřených úkolů.
+- **Blíží se expirace** (čtečka): záznamy na lokacích podle zbývajících dní, filtr *Červené + expirované* / *Žluté* /
+  *Vše*, akce *Na lokaci* (otevře kontrolu lokace), *Vydáno*, *Zlikvidováno* – zapíše se do logu s kým a kdy
+  (i bez signálu přes frontu). Na Domů je počet červených + expirovaných.
+- **PC – Úkoly** (vedoucí, manažer, admin; v rozcestníku dlaždice *Expirace – PC*): nový úkol (komu, lokace – jednotlivé,
+  čárkou, rozsah „od až do“ v rámci řady, volitelně zboží, termín, poznámka), přehled úkolů s průběhem, zrušení,
+  pravidla plánovače. Ostatní položky postranního menu jsou zatím „připravujeme“.
+- **Plánovač** (každý den kolem 5:30): pro každý podnik a pravidlo (červené pásmo neověřené / lokace bez kontroly /
+  zboží z importu bez záznamů) nejvýš jeden otevřený úkol pro „kdokoliv“ s max. 20 nejnaléhavějšími lokacemi
+  podle trasy; bez duplicit s otevřenými úkoly. Ručně: menu *Aplikace CS → Plánovač – spustit teď*.
 
 ## Struktura repa
 
@@ -61,7 +74,7 @@ Celé nastavení se dělá jednou. Potřebuješ osobní Google účet (Gmail) a 
 4. Zpět v **Editoru** (ikona `< >`) otevři `appsscript.json`, smaž obsah a vlož obsah souboru
    [`apps-script/appsscript.json`](apps-script/appsscript.json).
 5. Pro každý soubor `.gs` ze složky [`apps-script/`](apps-script/) – `Api.gs`, `Auth.gs`, `Fotky.gs`,
-   `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`, `Setup.gs`:
+   `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`, `Planovac.gs`, `Setup.gs`, `Ukoly.gs`:
    - klikni na **+** vedle *Soubory* → **Skript**, zadej název bez `.gs` (např. `Api`),
    - smaž předvyplněný obsah a vlož celý obsah souboru z repa.
 6. Výchozí soubor `Kód.gs` smaž (tři tečky vedle názvu → *Smazat*).
@@ -85,6 +98,8 @@ Setup můžeš spouštět opakovaně – doplní jen to, co chybí, nic nepřep�
 6. **Aplikace CS → Povolit fotky (Google Disk)**. Google požádá o další oprávnění (přístup k Disku) – povol stejně
    jako v bodu 3. Skript založí na tvém Disku složky *Aplikace CS – fotky – Stavebniny DEK* a *… – Stachema*
    a jejich ID zapíše do listu `Nastaveni` (`slozka_fotky_id`). Chceš-li jinou složku, přepiš ID v `Nastaveni`.
+7. **Aplikace CS → Plánovač – zapnout denní spouštění (5:30)**. Google požádá o oprávnění ke spouštěčům – povol.
+   Plánovač pak každé ráno vytvoří úkoly (stav spouštěče je vidět v PC části na obrazovce Úkoly).
 
 **Další uživatelé:** menu **Aplikace CS → Přidat uživatele** (jméno, role `skladnik` / `vedouci` / `manazer` / `admin`, PIN).
 **Zapomenutý PIN nebo zamčený účet:** **Aplikace CS → Změnit PIN / odemknout uživatele**.
@@ -132,6 +147,45 @@ URL do veřejného repa patří – bez platného PINu se přes ni nic nedostane
 4. Přihlas se: vyber jméno, zadej PIN. Čtečka si pamatuje posledního uživatele.
 
 Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí stáhne a projeví se při dalším otevření aplikace.
+
+---
+
+## Přechod na etapu 3 (pro už nasazenou etapu 2)
+
+Web (verze **0.3.0**) se nasadí sám po pushi do `main`. V Apps Scriptu udělej ručně:
+
+1. V tabulce **Rozšíření → Apps Script**.
+2. **Nové soubory** (**+** vedle *Soubory* → **Skript**, název bez `.gs`):
+   - `Ukoly` – obsah [`apps-script/Ukoly.gs`](apps-script/Ukoly.gs),
+   - `Planovac` – obsah [`apps-script/Planovac.gs`](apps-script/Planovac.gs).
+3. **Nahraď celý obsah** změněných souborů verzí z repa: `Api.gs`, `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`,
+   `Setup.gs`. (`Auth.gs`, `Fotky.gs` a `appsscript.json` se nezměnily.) Ulož (Ctrl+S).
+4. Vrať se do tabulky a **obnov stránku** (F5) – v menu *Aplikace CS* přibudou položky plánovače.
+5. **Aplikace CS → Založit / doplnit listy (setup)** – do listu `Ukoly` přidá sloupec `hotove_lokace`
+   (aplikace by ho doplnila i sama, ale takhle ho hned uvidíš).
+6. **Aplikace CS → Plánovač – zapnout denní spouštění (5:30)**. Google požádá o nové oprávnění
+   (*spravovat spouštěče*): *Pokračovat → Rozšířená nastavení → Přejít na Aplikace CS → Povolit*.
+   Pak menu spusť **znovu**, ať se spouštěč opravdu založí – potvrdí to hláška „Plánovač se bude spouštět…“.
+   Kontrola: v editoru Apps Scriptu vlevo **Spouštěče** (budík) – je tam `planovac`, *Na základě času*, *Denní*.
+7. Volitelně **Aplikace CS → Plánovač – spustit teď** – hned vytvoří první úkoly a ukáže souhrn.
+8. **Nasadit → Spravovat nasazení** → tužka → *Verze: **Nová verze*** → **Nasadit**. URL zůstane stejná.
+9. Na čtečce aplikaci zavři a otevři **dvakrát** – v rozcestníku musí být verze **0.3.0**.
+
+Plánovač upravuješ v listu `Nastaveni` (`planovac_dni_bez_kontroly`, `planovac_cervene_overit_dni`,
+`planovac_max_lokaci_ukol`) – bez zásahu do kódu.
+
+---
+
+## Ověření etapy 3
+
+- [ ] Vedoucí na PC (rozcestník → *Expirace – PC* → Úkoly) zadá úkol konkrétnímu skladníkovi, např.
+      `H1-A-07-1 až H1-A-12-4` – v přehledu je úkol s průběhem 0 / N.
+- [ ] Skladník ho na čtečce vidí v *Moje úkoly* (číslo na dlaždici), dá *Začít*, projde lokace (klepnutím
+      na lokaci nebo skenem) a po poslední se objeví „Úkol splněn ✔“; v listu `Ukoly` je `splněný`, `splnil`, `splneno`.
+- [ ] *Plánovač – spustit teď* vytvoří rozumné úkoly; druhé spuštění nevytvoří duplicity (hláška „beze změny“).
+- [ ] *Blíží se expirace* → *Zlikvidováno* → v `Zaznamy` je stav, `zmenil`, `zmeneno`, v `Kontroly` řádek
+      `zlikvidováno` se jménem a časem.
+- [ ] Zrušení úkolu na PC → stav `zrušený`, v `splnil` / `splneno` kdo a kdy.
 
 ---
 
@@ -183,7 +237,9 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
 - API: `POST` na URL webové aplikace, `Content-Type: text/plain`, tělo `{"action", "token", "data"}`,
   odpověď `{"ok": true, "data"}` nebo `{"ok": false, "error", "kod"}`.
   Akce: `uzivatele.seznam`, `login`, `logout`, `ja`, `data.zaklad`, `lokace.nacti`, `lokace.dokonci`,
-  `kontroly.dnes`, `foto.nahraj`.
+  `kontroly.dnes` (+ počet otevřených úkolů), `foto.nahraj`, `zaznam.stav` (Vydáno/Zlikvidováno, idempotentní podle
+  `id_akce`), `ukoly.moje`, `diagnostika.odesli`; jen vedoucí/manažer/admin: `ukoly.seznam`, `ukoly.zadej`, `ukoly.zrus`.
+- Plánovač: funkce `planovac()` (spouštěč i menu), instalace spouštěče `instalujPlanovac()`.
 - `lokace.dokonci` je idempotentní podle `id_davky`: zpracované dávky si server pamatuje 30 dní ve Script Properties
   (`davka_<id>`), opakované odeslání vrátí původní výsledek.
 - Čas kontroly z offline fronty se bere z čtečky, nejvýš 2 dny zpět (starší dávka dostane čas přijetí).

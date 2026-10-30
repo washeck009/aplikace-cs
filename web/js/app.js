@@ -9,11 +9,18 @@ import { zobrazPrihlaseni } from './obrazovky/prihlaseni.js';
 import { zobrazRozcestnik } from './obrazovky/rozcestnik.js';
 import { zobrazExpiraceDomu } from './obrazovky/expirace-domu.js';
 import { zobrazKontroluLokace } from './obrazovky/kontrola-lokace.js';
+import { zobrazMojeUkoly } from './obrazovky/moje-ukoly.js';
+import { zobrazBliziSe } from './obrazovky/blizi-se.js';
+import { zobrazPcUkoly } from './obrazovky/pc-ukoly.js';
 
 const OBRAZOVKY = {
   '#/': zobrazRozcestnik,
   '#/expirace': zobrazExpiraceDomu,
-  '#/expirace/kontrola': zobrazKontroluLokace
+  '#/expirace/kontrola': zobrazKontroluLokace,
+  '#/expirace/ukoly': zobrazMojeUkoly,
+  '#/expirace/blizi': zobrazBliziSe,
+  '#/pc': zobrazPcUkoly,
+  '#/pc/ukoly': zobrazPcUkoly
 };
 
 function vykresli() {
@@ -21,6 +28,8 @@ function vykresli() {
   const r = relace();
   // Skeny během překreslení čekají ve frontě; obrazovka se skenováním si pole znovu zobrazí.
   odpojSkener();
+  // PC část má širokou stránku s postranním menu.
+  document.body.classList.toggle('pc-rezim', !!r && location.hash.startsWith('#/pc'));
   if (!r) {
     zobrazPrihlaseni(koren);
   } else {
@@ -46,10 +55,11 @@ window.addEventListener('cs:davka-odeslana', (e) => {
   ulozDnesZapocteno(autor, davka.podnik, vysledek.dnes);
   const preskoceno = vysledek.souhrn?.preskoceno
     ? ` (${vysledek.souhrn.preskoceno} řádků přeskočeno – mezitím se změnily)` : '';
+  const splnene = (vysledek.ukoly_splnene || []).length ? ` Úkol splněn ✔ ${vysledek.ukoly_splnene.join(', ')}.` : '';
   toast(vysledek.zapocteno
-    ? `Lokace ${vysledek.lokace} odeslána a započtena (dnes ${vysledek.dnes}).${preskoceno}`
-    : `Lokace ${vysledek.lokace} odeslána – dnes už byla započtena, počítá se jen 1×.${preskoceno}`);
-  if (location.hash === '#/expirace') vykresli();
+    ? `Lokace ${vysledek.lokace} odeslána a započtena (dnes ${vysledek.dnes}).${preskoceno}${splnene}`
+    : `Lokace ${vysledek.lokace} odeslána – dnes už byla započtena, počítá se jen 1×.${preskoceno}${splnene}`);
+  if (location.hash === '#/expirace' || location.hash === '#/expirace/ukoly') vykresli();
 });
 
 obnovDiagnostiku();

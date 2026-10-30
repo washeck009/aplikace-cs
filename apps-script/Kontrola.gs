@@ -161,11 +161,14 @@ function akceLokaceNacti_(data) {
   };
 }
 
-/** Počet dnes započtených lokací přihlášeného uživatele v podniku (dlaždice Domů). */
+/** Dlaždice Domů: počet dnes započtených lokací přihlášeného uživatele a jeho otevřených úkolů v podniku. */
 function akceKontrolyDnes_(data, uzivatel) {
   const podnik = overPodnik_(data.podnik);
   const dnes = zacatekDne_(new Date());
-  return { zapocteno: pocetZapoctenych_(kontrolyOd_(dnes), podnik, uzivatel.jmeno, dnes) };
+  return {
+    zapocteno: pocetZapoctenych_(kontrolyOd_(dnes), podnik, uzivatel.jmeno, dnes),
+    ukoly: mojeOtevreneUkoly_(podnik, uzivatel.jmeno).length
+  };
 }
 
 /**
@@ -388,13 +391,15 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
     return jeAno_(k.zapocteno) && text_(k.podnik) === podnik && normalizujKod_(k.lokace) === kod
       && text_(k.uzivatel).toLowerCase() === jmeno.toLowerCase() && k.cas >= den && k.cas < konecDne;
   });
+  // Dokončená lokace (kýmkoliv) se odškrtne ve všech otevřených úkolech podniku.
+  const ukoly = odskrtniLokaciVUkolech_(podnik, kod, jmeno, cas);
   kontroly.forEach(function (k, i) {
     k.id = noveId_();
     k.cas = cas;
     k.uzivatel = jmeno;
     k.podnik = podnik;
     k.lokace = kodLokace;
-    k.id_ukolu = '';
+    k.id_ukolu = ukoly.ids.join(',');
     k.zapocteno = i === 0 && !uzZapocteno;
   });
 
@@ -408,7 +413,49 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
 
   const dnesPocet = pocetZapoctenych_(posledni, podnik, jmeno, dnes)
     + (!uzZapocteno && den.getTime() === dnes.getTime() ? 1 : 0);
-  return { lokace: kodLokace, zapocteno: !uzZapocteno, dnes: dnesPocet, nova_lokace: !lokace, souhrn: souhrn };
+  return {
+    lokace: kodLokace, zapocteno: !uzZapocteno, dnes: dnesPocet, nova_lokace: !lokace, souhrn: souhrn,
+    ukoly_splnene: ukoly.splnene
+  };
+}
+
+/**
+ * Vydáno / Zlikvidováno mimo kontrolu lokace (obrazovka Blíží se expirace) – smí kdokoliv.
+ * {id_akce, podnik, id, stav, cas}. Zapíše se do Kontroly (bez započtení). Opakované odeslání nic nezdvojí.
+ */
+function akceZaznamStav_(data, uzivatel) {
+  const podnik = overPodnik_(data.podnik);
+  const idAkce = text_(data.id_akce);
+  if (!/^[A-Za-z0-9_-]{8,64}$/.test(idAkce)) throw chyba_('Chybí ID akce.');
+  const stav = text_(data.stav);
+  if (stav !== STAV.VYDANO && stav !== STAV.ZLIKVIDOVANO) throw chyba_('Neplatný stav: ' + stav);
+
+  return sZamkem_(function () {
+    const vlastnosti = PropertiesService.getScriptProperties();
+    const klic = PREFIX_DAVKY + idAkce;
+    const zpracovana = vlastnosti.getProperty(klic);
+    if (zpracovana) return JSON.parse(zpracovana).vysledek;
+
+    const ted = new Date();
+    const cas = casDavky_(data.cas, ted);
+    const zaznamy = nactiList_('Zaznamy');
+    const r = zaznamy.radky.filter(function (x) { return text_(x.id) === text_(data.id) && text_(x.podnik) === podnik; })[0];
+    if (!r) throw chyba_('Záznam neexistuje (mohl být mezitím smazán).');
+    r.stav = stav;
+    r.zmenil = uzivatel.jmeno;
+    r.zmeneno = cas;
+    zapisRadky_(zaznamy, [r]);
+    pridejRadky_('Kontroly', [{
+      id: noveId_(), cas: cas, uzivatel: uzivatel.jmeno, podnik: podnik, lokace: text_(r.lokace), id_zaznamu: text_(r.id),
+      akce: stav === STAV.VYDANO ? 'vydáno' : 'zlikvidováno', pocet_ks: r.pocet_ks, poznamka: 'Blíží se expirace',
+      id_ukolu: '', zapocteno: false
+    }]);
+    const vysledek = { id: text_(r.id), stav: stav, lokace: text_(r.lokace) };
+    SpreadsheetApp.flush();
+    uklidDavky_(vlastnosti, ted);
+    vlastnosti.setProperty(klic, JSON.stringify({ cas: ted.getTime(), vysledek: vysledek }));
+    return vysledek;
+  });
 }
 
 /** Smaže záznamy o zpracovaných dávkách starší než DAVKY_DRZET_DNI. */

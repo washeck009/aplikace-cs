@@ -11,6 +11,9 @@ function onOpen() {
     .addItem('Změnit PIN / odemknout uživatele', 'menuZmenitPin')
     .addSeparator()
     .addItem('Povolit fotky (Google Disk)', 'menuFotky')
+    .addSeparator()
+    .addItem('Plánovač – spustit teď', 'menuPlanovacTed')
+    .addItem('Plánovač – zapnout denní spouštění (5:30)', 'menuInstalovatPlanovac')
     .addToUi();
 }
 

@@ -54,6 +54,24 @@ function pridejRadky_(nazev, objekty) {
   list.getRange(prvni, 1, radky.length, hlavicka.length).setValues(radky);
 }
 
+/**
+ * Doplní do listu sloupce z LISTY, které v něm chybí (nové sloupce z pozdějších etap) – stejně jako setup,
+ * aby aplikace fungovala, i když vlastník setup po aktualizaci nespustil.
+ */
+function zajistiSloupce_(nazev) {
+  const list = list_(nazev);
+  const hlavicka = hlavickaListu_(list);
+  const chybi = LISTY[nazev].filter(function (s) { return hlavicka.indexOf(s) < 0; });
+  if (!chybi.length) return;
+  list.getRange(1, hlavicka.length + 1, 1, chybi.length).setValues([chybi]).setFontWeight('bold').setBackground('#e6f0fa');
+  const radku = list.getMaxRows() - 1;
+  chybi.forEach(function (s, i) {
+    if (radku > 0 && (TEXTOVE_SLOUPCE[nazev] || []).indexOf(s) >= 0) {
+      list.getRange(2, hlavicka.length + 1 + i, radku, 1).setNumberFormat('@');
+    }
+  });
+}
+
 /** Změní vybrané buňky v jednom řádku: zmeny = {nazev_sloupce: nová hodnota}. */
 function upravRadek_(nazev, cisloRadku, zmeny) {
   const list = list_(nazev);

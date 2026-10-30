@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.3.0 – 2026-10-30 – Etapa 3: Úkoly, Blíží se expirace, plánovač
+
+### Přidáno
+- Čtečka – **Moje úkoly**: úkoly pro mě + „kdokoliv“ ve zvoleném podniku, lokace podle trasy (hala → řada → sloupec →
+  nosník, čísla přirozeně), hotové přeškrtnuté, průběh x z y, *Začít / pokračovat* → kontrola s nabídkou zbývajících
+  lokací (čipy i sken). Bez signálu poslední stažené úkoly + lokace z neodeslaných dávek jako hotové.
+- Čtečka – **Blíží se expirace**: řazení podle zbývajících dní, filtry Červené + expirované / Žluté / Vše,
+  *Na lokaci* (otevře kontrolu lokace), *Vydáno* / *Zlikvidováno* s potvrzením přes offline frontu.
+- Domů: aktivní dlaždice Moje úkoly (počet otevřených) a Blíží se expirace (počet červených + expirovaných).
+- **PC část**: rám s postranním menu podle makety (Přehled, Záznamy, Správa zatím „připravujeme“), obrazovka **Úkoly**
+  – nový úkol (komu, lokace jednotlivě / čárkou / rozsah „od až do“ v rámci řady, zboží, termín, poznámka), přehled
+  s průběhem, zrušení, pravidla plánovače a stav spouštěče. Dlaždice *Expirace – PC* v rozcestníku pro vedoucí+.
+- Backend: `ukoly.moje`, `ukoly.seznam`, `ukoly.zadej`, `ukoly.zrus`, `zaznam.stav`; `lokace.dokonci` odškrtne lokaci
+  ve všech otevřených úkolech podniku zadaných před kontrolou (úkol s poslední lokací = splněný, `splnil`, `splneno`),
+  `Kontroly.id_ukolu` = odškrtnuté úkoly; `kontroly.dnes` vrací i počet otevřených úkolů.
+- **Plánovač** `planovac()` (kap. 7): pravidla b) červené pásmo neověřené, a) lokace bez kontroly, c) zboží z importu
+  bez záznamů; na pravidlo a podnik nejvýš jeden otevřený úkol pro „kdokoliv“ (doplňuje se do max. počtu lokací),
+  nejnaléhavější lokace, podle trasy, bez duplicit s otevřenými úkoly. Spouštěč denně 5:30 – menu v tabulce
+  *Plánovač – zapnout denní spouštění*, ruční běh *Plánovač – spustit teď*.
+
+### Změněno v datovém modelu
+- List `Ukoly`: nový sloupec `hotove_lokace` (lokace zkontrolované po zadání). Doplní ho setup, nebo aplikace sama.
+- U zrušeného úkolu jsou ve `splneno` / `splnil` čas a jméno toho, kdo ho zrušil.
+
 ## 0.2.3 – 2026-10-30 – Skenování podle ověřených pravidel pro Urovo DT66
 
 Sken na Urovo chodí přes IME (commitText), ne jako stisky kláves (ověřeno v jiné aplikaci na stejných čtečkách).

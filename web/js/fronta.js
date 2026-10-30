@@ -39,6 +39,20 @@ export async function cekajiciDavky() {
   return (await frontaVse()).filter((p) => p.typ === 'davka');
 }
 
+/**
+ * Záznamy „Na lokaci“ podniku z dat v zařízení s promítnutými neodeslanými dávkami a změnami stavu
+ * (Blíží se expirace, počty na Domů).
+ */
+export async function zaznamySFrontou(zaklad) {
+  let zaznamy = zaklad?.zaznamy || [];
+  for (const p of await frontaVse()) {
+    if (p.data.podnik !== zaklad.podnik) continue;
+    if (p.typ === 'davka') zaznamy = aplikujDavku(zaznamy, p.data, p.autor);
+    else if (p.typ === 'stav') zaznamy = zaznamy.filter((z) => z.id !== p.data.id);
+  }
+  return zaznamy;
+}
+
 export async function zahodZFronty(id) {
   const vse = await frontaVse();
   const p = vse.find((x) => x.id === id);
@@ -98,6 +112,11 @@ async function odesli(p) {
       const { url } = await volej('foto.nahraj', p.data, { token, timeout: 90000 });
       await doplnFotku(p.data.id_fotky, url);
       await frontaSmaz(p.id);
+    } else if (p.typ === 'stav') {
+      // Vydáno / Zlikvidováno z obrazovky Blíží se expirace.
+      await volej('zaznam.stav', p.data, { token, timeout: 60000 });
+      await frontaSmaz(p.id);
+      await promitniDoCache(p);
     } else {
       const vysledek = await volej('lokace.dokonci', p.data, { token, timeout: 60000 });
       await frontaSmaz(p.id);
@@ -143,10 +162,15 @@ async function doplnFotku(idFotky, url) {
   })));
 }
 
-/** Odeslanou dávku promítne do uložených dat podniku, aby lokace bez signálu ukázala nový stav. */
+/** Odeslanou dávku / změnu stavu promítne do uložených dat podniku, aby se bez signálu ukazoval nový stav. */
 async function promitniDoCache(p) {
   const zaklad = await nactiZaklad(p.data.podnik);
   if (!zaklad?.zaznamy) return;
+  if (p.typ === 'stav') {
+    zaklad.zaznamy = zaklad.zaznamy.filter((z) => z.id !== p.data.id);
+    await ulozZaklad(zaklad);
+    return;
+  }
   const kod = p.data.lokace.toUpperCase();
   if (!zaklad.lokace.some((l) => l.kod.toUpperCase() === kod)) {
     zaklad.lokace.push({ kod: p.data.lokace, k_overeni: true });

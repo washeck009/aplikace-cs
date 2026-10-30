@@ -1,10 +1,11 @@
 // Modul Expirace – obrazovka Domů: přepínač podniku, dlaždice, dnešní kontroly, stav stažených dat podniku.
 import { volej } from '../api.js';
 import { nactiZaklad, ulozZaklad } from '../db.js';
-import { cekajiciDavky } from '../fronta.js';
+import { pasmo } from '../expirace.js';
+import { cekajiciDavky, zaznamySFrontou } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
 import { pripravSkener } from '../skener.js';
-import { dnesZapocteno, ulozDnesZapocteno, ulozPodnik, zvolenyPodnik } from '../uloziste.js';
+import { dnesZapocteno, ulozDnesZapocteno, ulozeneUkoly, ulozPodnik, zvolenyPodnik } from '../uloziste.js';
 import { esc, hlavicka, napojHlavicku, prejdi, toast } from '../ui.js';
 
 // Data podniku se znovu stahují po přihlášení a pak nejdéle po 30 minutách.
@@ -12,8 +13,8 @@ const OBNOVA_MS = 30 * 60 * 1000;
 
 const DLAZDICE = [
   { ikona: '📷', nazev: 'Kontrola lokace', popis: 'Naskenuj lokaci a ověř zboží', cil: '#/expirace/kontrola' },
-  { ikona: '📋', nazev: 'Moje úkoly', popis: 'Od vedoucích a z plánovače' },
-  { ikona: '⏳', nazev: 'Blíží se expirace', popis: 'Seřazeno podle data, pro obchůzku' }
+  { ikona: '📋', nazev: 'Moje úkoly', popis: 'Od vedoucích a z plánovače', cil: '#/expirace/ukoly', odznak: 'ukoly' },
+  { ikona: '⏳', nazev: 'Blíží se expirace', popis: 'Seřazeno podle data, pro obchůzku', cil: '#/expirace/blizi', odznak: 'blizi' }
 ];
 
 // Pořadové číslo vykreslení – starší rozběhnuté stahování nepřepíše novější obrazovku.
@@ -30,6 +31,7 @@ export function zobrazExpiraceDomu(koren, relace) {
       <span class="ic">${d.ikona}</span>
       <div><div class="tt">${d.nazev}</div><div class="ss">${d.popis}</div></div>
       ${d.cil ? '' : '<span class="tag">připravujeme</span>'}
+      ${d.odznak ? `<span class="badge" data-odznak="${d.odznak}" hidden></span>` : ''}
     </button>`).join('')}
     <div class="h">Dnes</div>
     <div class="task" id="infoDnes"><span class="hint">Načítám…</span></div>
@@ -56,6 +58,22 @@ export function zobrazExpiraceDomu(koren, relace) {
   obnovDnes(koren, podnik, relace, aktualni);
 }
 
+function nastavOdznak(koren, nazev, pocet) {
+  const el = koren.querySelector(`[data-odznak="${nazev}"]`);
+  if (!el || pocet === null || pocet === undefined) return;
+  el.textContent = pocet;
+  el.hidden = false;
+}
+
+/** Odznak Blíží se expirace = počet záznamů v červeném pásmu + expirovaných (z dat v zařízení + fronty). */
+async function spocitejBliziSe(koren, podnik, aktualni) {
+  const zaklad = await nactiZaklad(podnik);
+  if (!zaklad?.zaznamy || !aktualni()) return;
+  const n = zaklad.nastaveni || {};
+  const pocet = (await zaznamySFrontou(zaklad)).filter((z) => ['r', 'x'].includes(pasmo(z.expirace, n))).length;
+  if (aktualni()) nastavOdznak(koren, 'blizi', pocet);
+}
+
 /** Počet dnes započtených lokací: hned poslední známý, pak ze serveru; plus co čeká ve frontě. */
 async function obnovDnes(koren, podnik, relace, aktualni) {
   const vypis = async (pocet) => {
@@ -72,12 +90,15 @@ async function obnovDnes(koren, podnik, relace, aktualni) {
       <div class="hint">Tatáž lokace se za den počítá jen jednou.</div>`;
   };
   await vypis(dnesZapocteno(relace.jmeno, podnik));
+  nastavOdznak(koren, 'ukoly', ulozeneUkoly(relace.jmeno, podnik)?.ukoly.length);
+  spocitejBliziSe(koren, podnik, aktualni);
   try {
-    const { zapocteno } = await volej('kontroly.dnes', { podnik });
+    const { zapocteno, ukoly } = await volej('kontroly.dnes', { podnik });
     ulozDnesZapocteno(relace.jmeno, podnik, zapocteno);
     await vypis(zapocteno);
+    if (aktualni()) nastavOdznak(koren, 'ukoly', ukoly);
   } catch {
-    // Bez signálu zůstane poslední známý počet.
+    // Bez signálu zůstanou poslední známé počty.
   }
 }
 
@@ -96,6 +117,7 @@ async function obnovData(koren, podnik, relace, aktualni, vynutit) {
     const zaklad = await volej('data.zaklad', { podnik });
     await ulozZaklad(zaklad);
     if (aktualni()) vypisInfo(koren, podnik, relace, aktualni, zaklad, '');
+    spocitejBliziSe(koren, podnik, aktualni);
   } catch (e) {
     if (e.kod === 'TOKEN' || !aktualni()) return;
     vypisInfo(koren, podnik, relace, aktualni, cache, e.message);

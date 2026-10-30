@@ -5,7 +5,8 @@ const KLICE = {
   relace: 'cs.relace',
   jmeno: 'cs.posledniJmeno',
   podnik: 'cs.podnik',
-  dnes: 'cs.dnesZapocteno'
+  dnes: 'cs.dnesZapocteno',
+  ukoly: 'cs.ukoly'
 };
 
 function cti(klic) {
@@ -58,3 +59,12 @@ export function dnesZapocteno(jmeno, podnik) {
 
 export const ulozDnesZapocteno = (jmeno, podnik, pocet) =>
   pis(KLICE.dnes, { klic: dnesKlic(jmeno, podnik), pocet });
+
+// Poslední stažené Moje úkoly (zobrazí se i bez signálu).
+export function ulozeneUkoly(jmeno, podnik) {
+  const u = cti(KLICE.ukoly);
+  return u?.klic === `${jmeno}|${podnik}` ? u : null;
+}
+
+export const ulozUkoly = (jmeno, podnik, ukoly, nacteno) =>
+  pis(KLICE.ukoly, { klic: `${jmeno}|${podnik}`, ukoly, nacteno });

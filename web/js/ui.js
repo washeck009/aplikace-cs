@@ -84,9 +84,9 @@ async function zobrazFrontu() {
   const vse = await obsahFronty();
   const cas = (iso) => new Date(iso).toLocaleTimeString('cs-CZ', { hour: 'numeric', minute: '2-digit' });
   const radek = (p) => {
-    const co = p.typ === 'foto'
-      ? `📷 Fotka · ${esc(p.data.lokace)}`
-      : `📦 Lokace <b>${esc(p.data.lokace)}</b>`;
+    const co = p.typ === 'foto' ? `📷 Fotka · ${esc(p.data.lokace)}`
+      : p.typ === 'stav' ? `🏷 ${esc(p.data.stav)} · ${esc(p.data.lokace || '')}`
+        : `📦 Lokace <b>${esc(p.data.lokace)}</b>`;
     const stav = p.trvalaChyba ? `<span class="chyba-text">Chyba: ${esc(p.chyba)}</span>`
       : p.cekaNaPrihlaseni ? `Čeká na přihlášení: ${esc(p.autor)}`
         : p.chyba ? `Zkusím znovu (${esc(p.chyba)})` : 'Čeká na odeslání';

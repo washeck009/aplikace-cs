@@ -19,6 +19,11 @@ function mapaAkci_() {
     'lokace.dokonci': { role: 'skladnik', fn: akceLokaceDokonci_ },
     'kontroly.dnes': { role: 'skladnik', fn: akceKontrolyDnes_ },
     'foto.nahraj': { role: 'skladnik', fn: akceFotoNahraj_ },
+    'zaznam.stav': { role: 'skladnik', fn: akceZaznamStav_ },
+    'ukoly.moje': { role: 'skladnik', fn: akceUkolyMoje_ },
+    'ukoly.seznam': { role: 'vedouci', fn: akceUkolySeznam_ },
+    'ukoly.zadej': { role: 'vedouci', fn: akceUkolyZadej_ },
+    'ukoly.zrus': { role: 'vedouci', fn: akceUkolyZrus_ },
     'diagnostika.odesli': { role: 'skladnik', fn: akceDiagnostikaOdesli_ }
   };
 }

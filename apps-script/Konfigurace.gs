@@ -39,6 +39,19 @@ const STAV = {
   ZLIKVIDOVANO: 'Zlikvidováno'
 };
 
+// Úkoly (list Ukoly).
+const STAV_UKOLU = { OTEVRENY: 'otevřený', SPLNENY: 'splněný', ZRUSENY: 'zrušený' };
+const TYP_UKOLU = { RUCNI: 'ruční', PLANOVAC: 'plánovač' };
+const KDOKOLIV = 'kdokoliv';
+const MAX_LOKACI_RUCNI_UKOL = 300;
+
+// Pravidla plánovače (kap. 7). Úkol plánovače se k pravidlu přiřazuje podle začátku popisu.
+const PRAVIDLA_PLANOVACE = {
+  a: 'Lokace nekontrolované déle než',
+  b: 'Červené pásmo – ověřit, že zboží je na lokaci',
+  c: 'Zboží na skladě bez kontroly'
+};
+
 // Listy a jejich sloupce. Pořadí slouží jen pro založení – kód vždy čte podle názvů.
 const LISTY = {
   Uzivatele: ['id', 'jmeno', 'role', 'pin_hash', 'pin_salt', 'aktivni', 'chybne_pokusy', 'zamceno_do'],
@@ -47,7 +60,10 @@ const LISTY = {
   Zaznamy: ['id', 'podnik', 'lokace', 'ean', 'cislo_polozky', 'expirace', 'expirace_text', 'pocet_ks', 'stav',
     'zalozil', 'zalozeno', 'overil', 'overeno', 'zmenil', 'zmeneno', 'poznamka', 'foto_url', 'k_doplneni'],
   Kontroly: ['id', 'cas', 'uzivatel', 'podnik', 'lokace', 'id_zaznamu', 'akce', 'pocet_ks', 'poznamka', 'id_ukolu', 'zapocteno'],
-  Ukoly: ['id', 'podnik', 'typ', 'komu', 'lokace', 'polozka', 'termin', 'popis', 'stav', 'zadal', 'zadano', 'splneno', 'splnil'],
+  // hotove_lokace: lokace úkolu, které už někdo po zadání zkontroloval (přidáno v etapě 3).
+  // U zrušeného úkolu je ve splneno/splnil kdy a kdo ho zrušil.
+  Ukoly: ['id', 'podnik', 'typ', 'komu', 'lokace', 'polozka', 'termin', 'popis', 'stav', 'zadal', 'zadano', 'splneno', 'splnil',
+    'hotove_lokace'],
   Nastaveni: ['podnik', 'klic', 'hodnota', 'popis'],
   Import_stav_lokaci: ['podnik', 'lokace', 'cislo_polozky', 'mnozstvi', 'datum_importu'],
   Log_chyb: ['cas', 'akce', 'uzivatel', 'chyba']
@@ -60,7 +76,7 @@ const TEXTOVE_SLOUPCE = {
   Lokace: ['kod', 'hala', 'rada', 'sloupec', 'nosnik'],
   Zaznamy: ['id', 'lokace', 'ean', 'cislo_polozky', 'expirace_text'],
   Kontroly: ['id', 'lokace', 'id_zaznamu', 'id_ukolu'],
-  Ukoly: ['id', 'lokace', 'polozka'],
+  Ukoly: ['id', 'lokace', 'polozka', 'hotove_lokace'],
   Import_stav_lokaci: ['lokace', 'cislo_polozky']
 };
 

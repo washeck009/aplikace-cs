@@ -7,10 +7,10 @@ import {
   polozkaPodleEan, stitekPasma
 } from '../expirace.js';
 import { vyfotit } from '../fotky.js';
-import { cekajiciDavky, pridejDoFronty } from '../fronta.js';
+import { obsahFronty, pridejDoFronty } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
 import { pripravSkener, skryjSkener, zobrazSkener } from '../skener.js';
-import { dialog, esc, hlavicka, napojHlavicku, toast } from '../ui.js';
+import { dialog, esc, hlavicka, napojHlavicku, prejdi, toast } from '../ui.js';
 import { zvolenyPodnik } from '../uloziste.js';
 import { aplikujDavku, noveId } from '../zaznamy.js';
 
@@ -23,10 +23,23 @@ let koren = null;
 let s = null;
 // Pořadové číslo načítání lokace – pozdní odpověď starší lokace se zahodí.
 let cisloNacteni = 0;
+// Co otevřít při příštím vstupu: úkol z Moje úkoly, lokace z Blíží se expirace.
+let cekajiciUkol = null;
+let cekajiciLokace = null;
 
 const aktivni = () => location.hash === HASH && koren;
 const nazevPodniku = () => PODNIKY.find((p) => p.kod === s.podnik)?.nazev || s.podnik;
 const nastaveni = () => s.zaklad?.nastaveni;
+
+/** Moje úkoly → Začít/pokračovat: kontrola nabídne zbývající lokace úkolu. */
+export function zacniUkol(ukol) {
+  cekajiciUkol = ukol;
+}
+
+/** Blíží se expirace → Na lokaci: kontrola rovnou otevře lokaci. */
+export function otevriLokaciPriVstupu(kod) {
+  cekajiciLokace = normalizujKod(kod);
+}
 
 export async function zobrazKontroluLokace(el, relace) {
   koren = el;
@@ -34,11 +47,23 @@ export async function zobrazKontroluLokace(el, relace) {
   pripravSkener();
   const podnik = zvolenyPodnik();
   if (!s || s.jmeno !== relace.jmeno || s.podnik !== podnik) {
-    s = { jmeno: relace.jmeno, podnik, zaklad: null, krok: 'sken', lokace: null, rozhodnuti: {}, nove: [], formular: null };
+    s = { jmeno: relace.jmeno, podnik, zaklad: null, krok: 'sken', lokace: null, rozhodnuti: {}, nove: [], formular: null, ukol: null };
+  }
+  if (cekajiciUkol) {
+    s.ukol = cekajiciUkol.podnik === podnik ? { ...cekajiciUkol, hotove: [...cekajiciUkol.hotove] } : null;
+    cekajiciUkol = null;
   }
   s.zaklad = (await nactiZaklad(podnik)) || s.zaklad;
   if (!s.zaklad) await stahniZaklad();
-  if (aktivni()) vykresli();
+  if (!aktivni()) return;
+  const kod = cekajiciLokace;
+  cekajiciLokace = null;
+  if (kod && s.zaklad) {
+    if (s.lokace) prepnoutNaLokaci(kod);
+    else otevriLokaci(kod);
+    return;
+  }
+  vykresli();
 }
 
 /** Bez číselníku by každý EAN vypadal jako neznámý – proto se data podniku musí stáhnout. */
@@ -59,10 +84,24 @@ function vykresli() {
 
 /* ---------- 1) Sken lokace ---------- */
 
+/** Rámeček úkolu: průběh a zbývající lokace podle trasy (klepnutím se lokace otevře). */
+function boxUkolu() {
+  const u = s.ukol;
+  const hotovo = u.lokace.filter((k) => u.hotove.includes(k));
+  const zbyva = u.lokace.filter((k) => !u.hotove.includes(k));
+  return `<div class="task">
+    <div class="radek-mezi"><b>Úkol: ${esc(u.popis)}</b><button class="odkaz" data-konec-ukolu>Ukončit</button></div>
+    <div class="prog"><i style="width:${(100 * hotovo.length) / u.lokace.length}%"></i></div>
+    <div class="hint">${hotovo.length} z ${u.lokace.length} lokací · zbývající podle trasy (klepni, nebo naskenuj štítek):</div>
+    <div class="chips">${zbyva.map((k) => `<button class="chip" data-lokace="${esc(k)}">${esc(k)}</button>`).join('')}</div>
+  </div>`;
+}
+
 function krokSken() {
-  koren.innerHTML = hlavicka('Kontrola – ' + nazevPodniku(), { zpet: '#/expirace' }) + `<main class="ph-body">
+  koren.innerHTML = hlavicka('Kontrola – ' + nazevPodniku(), { zpet: s.ukol ? '#/expirace/ukoly' : '#/expirace' }) + `<main class="ph-body">
     ${s.zaklad ? '' : `<div class="chyba">Data podniku nejsou v zařízení stažená${s.chybaZakladu ? ': ' + esc(s.chybaZakladu) : '.'}</div>
       <button class="btn block" data-stahnout>Stáhnout data podniku</button>`}
+    ${s.ukol ? boxUkolu() : ''}
     <div class="task odkaz-sken">Naskenuj štítek lokace – pole pro sken je dole (zelený pruh = připraveno).
       Bez skeneru použij 📷 (kamera) nebo ⌨ (ruční zadání).</div>
   </main>`;
@@ -71,6 +110,13 @@ function krokSken() {
     e.currentTarget.disabled = true;
     await stahniZaklad();
     if (aktivni()) vykresli();
+  });
+  koren.querySelectorAll('[data-lokace]').forEach((b) => b.addEventListener('click', () => {
+    if (s.zaklad) otevriLokaci(normalizujKod(b.dataset.lokace));
+  }));
+  koren.querySelector('[data-konec-ukolu]')?.addEventListener('click', () => {
+    s.ukol = null;
+    vykresli();
   });
   zobrazSkener({
     popisek: 'Naskenuj štítek lokace',
@@ -129,11 +175,13 @@ async function nactiZeServeru(kod, cislo) {
   if (s.krok === 'lokace' && aktivni()) vykresli();
 }
 
-/** Do záznamů promítne dávky téže lokace, které ještě čekají ve frontě na odeslání. */
+/** Do záznamů promítne dávky téže lokace a změny stavu, které ještě čekají ve frontě na odeslání. */
 async function sFrontou(kod, zaznamy) {
   let vysledek = zaznamy;
-  for (const p of await cekajiciDavky()) {
-    if (p.data.podnik === s.podnik && p.data.lokace.toUpperCase() === kod) vysledek = aplikujDavku(vysledek, p.data, p.autor);
+  for (const p of await obsahFronty()) {
+    if (p.data.podnik !== s.podnik) continue;
+    if (p.typ === 'davka' && p.data.lokace.toUpperCase() === kod) vysledek = aplikujDavku(vysledek, p.data, p.autor);
+    else if (p.typ === 'stav') vysledek = vysledek.filter((z) => z.id !== p.data.id);
   }
   return vysledek;
 }
@@ -344,6 +392,19 @@ async function dokonci(typ) {
   toast(typ === 'bez_zbozi'
     ? `Lokace ${L.kod}: bez expiračního zboží – uloženo, odesílám…`
     : `Lokace ${L.kod} uložena: ${casti.join(', ')}. Odesílám…`);
+
+  // Úkol: lokaci odškrtnout; když je hotový celý, zpět na Moje úkoly (server ho po odeslání uzavře).
+  const kodLokace = L.kod.toUpperCase();
+  if (s.ukol && s.ukol.lokace.includes(kodLokace) && !s.ukol.hotove.includes(kodLokace)) {
+    s.ukol.hotove.push(kodLokace);
+    if (s.ukol.lokace.every((k) => s.ukol.hotove.includes(k))) {
+      toast(`Úkol splněn ✔ ${s.ukol.popis}`);
+      s.ukol = null;
+      zavritLokaci();
+      prejdi('#/expirace/ukoly');
+      return;
+    }
+  }
   zavritLokaci();
 }
 
