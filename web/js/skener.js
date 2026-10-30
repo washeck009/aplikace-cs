@@ -1,5 +1,6 @@
 // Skenování: jedno trvalé pole pro hardwarový skener Urovo (v index.html, mimo překreslovanou část obrazovky).
-// Skener (IME) zůstává navázaný na prvek, do kterého psal – pole se proto nikdy nenahrazuje a nemění se mu inputmode.
+// Skener (IME) zůstává navázaný na prvek, do kterého psal – pole se proto nikdy nenahrazuje a inputmode se mění
+// jen volbou režimu pole v diagnostice (A/B/C), nikdy po skenu.
 // Pojistky: sken zachycený i mimo pole, fronta skenů během překreslení, ruční zadání v dialogu a kamera.
 import { toast } from './ui.js';
 
@@ -13,6 +14,20 @@ const NAVRAT_FOKUSU_MS = 50;
 const SKRYTI_MS = 400; // obrazovka bez skenování pole po překreslení skryje
 const PLATNOST_SKENU_MS = 5000; // sken, pro který se nenajde obrazovka, se pak zahodí s upozorněním
 const MIN_DELKA = 3;
+const CEKANI_NA_TEXT_MS = 150; // IME může text doručit až po Enteru
+const READONLY_MS = 50;
+
+// Režim pole (volí se v diagnostice, pamatuje se v zařízení – kvůli zkoušení na čtečce bez nové verze):
+// A = inputmode="none" (nevyskočí klávesnice), B = obyčejné textové pole,
+// C = obyčejné pole, ale fokus přes krátké readOnly (potlačí klávesnici).
+export const REZIMY_POLE = {
+  A: 'inputmode="none"',
+  B: 'bez inputmode',
+  C: 'readonly při fokusu'
+};
+const KLIC_REZIMU = 'cs.rezimSkeneru';
+let rezim = nactiRezim();
+let casovacReadonly = null;
 
 let obsluha = null; // funkce(kod) aktuální obrazovky; smí vrátit Promise
 let zpracovava = false;
@@ -21,7 +36,54 @@ let casovacSkryti = null;
 let casovacPauzy = null;
 let casovacFronty = null;
 let skladani = false;
+let casovacCekani = null; // Enter přišel, ale pole je prázdné – čeká se na text z IME
 const buffer = { text: '', posledni: 0, casovac: null };
+
+function nactiRezim() {
+  try {
+    const r = localStorage.getItem(KLIC_REZIMU);
+    return REZIMY_POLE[r] ? r : 'A';
+  } catch {
+    return 'A';
+  }
+}
+
+export const rezimPole = () => rezim;
+
+/** Přepne režim pole (A/B/C) a zapamatuje ho; projeví se hned. */
+export function nastavRezimPole(novy) {
+  if (!REZIMY_POLE[novy]) return;
+  rezim = novy;
+  try {
+    localStorage.setItem(KLIC_REZIMU, novy);
+  } catch { /* jen pro tuto chvíli */ }
+  pouzijRezim();
+  vratFokus();
+}
+
+function pouzijRezim() {
+  const p = pole();
+  clearTimeout(casovacReadonly);
+  p.readOnly = false;
+  if (rezim === 'A') p.setAttribute('inputmode', 'none');
+  else p.removeAttribute('inputmode');
+}
+
+/** Fokus do pole podle režimu (C: krátce readOnly, aby nevyskočila klávesnice). */
+function zamerPole() {
+  const p = pole();
+  if (rezim === 'C') {
+    clearTimeout(casovacReadonly);
+    p.readOnly = true;
+    p.focus({ preventScroll: true });
+    casovacReadonly = setTimeout(() => { p.readOnly = false; }, READONLY_MS);
+  } else {
+    p.focus({ preventScroll: true });
+  }
+}
+
+/** Zpráva do diagnostiky (událost cs:diag). */
+const diag = (text) => window.dispatchEvent(new CustomEvent('cs:diag', { detail: text }));
 
 const blok = () => document.getElementById('skener');
 const pole = () => document.getElementById('sken');
@@ -76,6 +138,7 @@ export function odpojSkener() {
 /** Stav pro diagnostiku. */
 export function stavSkeneru() {
   return {
+    rezim,
     zobrazen: !blok().hidden,
     obsluha: !!obsluha,
     zpracovava,
@@ -146,13 +209,38 @@ export function vratFokus() {
   setTimeout(() => {
     const a = document.activeElement;
     if (blok().hidden || otevrenyDialog() || (a !== p && jeEditovatelne(a))) return;
-    p.focus({ preventScroll: true });
+    zamerPole();
     aktualizujStav();
   }, NAVRAT_FOKUSU_MS);
 }
 
+/**
+ * Enter v poli. Hodnota se nečte naslepo hned: když je pole prázdné, text z IME (commitText)
+ * může dorazit až po Enteru – počká se na input/compositionend, nejdéle CEKANI_NA_TEXT_MS.
+ */
+function priEnteru(zdroj) {
+  const p = pole();
+  diag(`${zdroj}: v poli "${p.value}"${skladani ? ' (IME skládá)' : ''}`);
+  setTimeout(() => diag(`${zdroj} +100 ms: v poli "${p.value}"`), 100);
+  if (p.value.trim() && !skladani) return odesliPole();
+  clearTimeout(casovacCekani);
+  casovacCekani = setTimeout(() => {
+    casovacCekani = null;
+    if (p.value.trim()) odesliPole();
+    else diag(`${zdroj}: text do ${CEKANI_NA_TEXT_MS} ms nedorazil`);
+  }, CEKANI_NA_TEXT_MS);
+}
+
+/** Text dorazil (input / compositionend) – pokud se po Enteru čekalo, zpracovat hned. */
+function priTextu() {
+  if (casovacCekani && !skladani && pole().value.trim()) odesliPole();
+  else naplanujPauzu();
+}
+
 function odesliPole() {
   clearTimeout(casovacPauzy);
+  clearTimeout(casovacCekani);
+  casovacCekani = null;
   const p = pole();
   const kod = p.value;
   p.value = '';
@@ -196,22 +284,26 @@ function napoj() {
     if (!b.hidden) document.documentElement.style.setProperty('--sken-vyska', b.offsetHeight + 'px');
   }).observe(b);
 
+  pouzijRezim();
+
+  // Enter bez preventDefault – pole není ve formuláři a zrušení klávesy by mohlo zahodit text, který IME ještě skládá.
   p.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.keyCode === 13) {
-      e.preventDefault();
-      odesliPole();
-    }
+    if (e.key === 'Enter' || e.keyCode === 13) priEnteru('Enter');
   });
   // Některé klávesnice (IME) pošlou konec řádku jen jako beforeinput/input, ne jako klávesu Enter.
   p.addEventListener('beforeinput', (e) => {
     if (e.inputType === 'insertLineBreak' || e.inputType === 'insertParagraph') {
       e.preventDefault();
-      odesliPole();
+      priEnteru('konec řádku');
     }
   });
   p.addEventListener('input', () => {
-    if (/[\r\n]/.test(p.value)) odesliPole();
-    else naplanujPauzu();
+    if (/[\r\n]/.test(p.value)) {
+      p.value = p.value.replace(/[\r\n]/g, '');
+      odesliPole();
+    } else {
+      priTextu();
+    }
   });
   p.addEventListener('compositionstart', () => {
     skladani = true;
@@ -219,7 +311,7 @@ function napoj() {
   });
   p.addEventListener('compositionend', () => {
     skladani = false;
-    naplanujPauzu();
+    priTextu();
   });
 
   b.addEventListener('click', (e) => {
@@ -249,7 +341,7 @@ function napoj() {
       buffer.casovac = setTimeout(dokonciBuffer, PAUZA_MS);
     } else if (e.key === 'Unidentified' || e.keyCode === 229) {
       // Znak přes IME mimo pole se přečíst nedá – aspoň hned vrátit fokus, ať další znaky jdou do pole.
-      if (!otevrenyDialog()) p.focus({ preventScroll: true });
+      if (!otevrenyDialog()) zamerPole();
     }
   }, true);
 

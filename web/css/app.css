@@ -201,5 +201,7 @@ body.se-skenerem:has(.foot) .toast { bottom: calc(var(--sken-vyska, 130px) + 90p
   background: rgba(10, 15, 25, .92); color: #e8edf3; font: 11px/1.35 ui-monospace, Consolas, monospace; padding: 6px 8px;
 }
 .diagnostika pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-all; }
-.diagnostika button { font: 12px system-ui; background: #3a4859; color: #fff; border: 0; border-radius: 6px; padding: 6px 10px; margin-right: 4px; }
+.diagnostika button { font: 12px system-ui; background: #3a4859; color: #fff; border: 0; border-radius: 6px; padding: 6px 10px; margin: 0 4px 4px 0; }
+.diagnostika button.on { background: var(--grn); }
+.diag-radek { margin-top: 4px; }
 .toast.on { opacity: 1; }

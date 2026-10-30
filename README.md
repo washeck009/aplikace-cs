@@ -189,5 +189,6 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
 - Čas kontroly z offline fronty se bere z čtečky, nejvýš 2 dny zpět (starší dávka dostane čas přijetí).
 - Neočekávané chyby serveru se zapisují do listu `Log_chyb`.
 - **Diagnostika skenování** na čtečce: v rozcestníku 5× rychle klepni na *verze …* → nahoře se ukáže panel
-  s posledními 20 událostmi klávesnice a stavem fokusu (zůstane zapnutý i po restartu; vypíná se tlačítkem *Vypnout*).
-  *Kopírovat* zkopíruje výpis do schránky – hodí se poslat při hlášení chyby.
+  s posledními událostmi klávesnice a IME a stavem fokusu (zůstane zapnutý i po restartu; vypíná se tlačítkem *Vypnout*).
+  *Režim pole* A / B / C přepíná, jak se skenovací pole chová vůči klávesnici (pro zkoušení na čtečce, pamatuje se).
+  *Odeslat výpis* uloží výpis do listu `Log_chyb` v tabulce (akce `diagnostika skenování`), *Kopírovat* do schránky.

@@ -18,7 +18,8 @@ function mapaAkci_() {
     'lokace.nacti': { role: 'skladnik', fn: akceLokaceNacti_ },
     'lokace.dokonci': { role: 'skladnik', fn: akceLokaceDokonci_ },
     'kontroly.dnes': { role: 'skladnik', fn: akceKontrolyDnes_ },
-    'foto.nahraj': { role: 'skladnik', fn: akceFotoNahraj_ }
+    'foto.nahraj': { role: 'skladnik', fn: akceFotoNahraj_ },
+    'diagnostika.odesli': { role: 'skladnik', fn: akceDiagnostikaOdesli_ }
   };
 }
 
@@ -48,6 +49,16 @@ function doPost(e) {
 /** Otevření adresy v prohlížeči – jen kontrola, že nasazení funguje. */
 function doGet() {
   return ContentService.createTextOutput('Aplikace CS – API běží. Tuto adresu vlož do web/config.js.');
+}
+
+/** Výpis diagnostiky skenování z čtečky → řádek v listu Log_chyb (na čtečce nejde kopírovat do schránky). */
+function akceDiagnostikaOdesli_(data, uzivatel) {
+  const text = String(data.text || '').slice(0, 45000); // buňka pojme max. 50 000 znaků
+  if (!text) throw chyba_('Výpis je prázdný.');
+  sZamkem_(function () {
+    pridejRadky_('Log_chyb', [{ cas: new Date(), akce: 'diagnostika skenování', uzivatel: uzivatel.jmeno, chyba: text }]);
+  });
+  return true;
 }
 
 function odpoved_(obj) {

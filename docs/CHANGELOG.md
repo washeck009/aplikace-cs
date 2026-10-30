@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.2.2 – 2026-10-30 – Ladění skenování přes IME
+
+Diagnostika z čtečky ukázala, že skener vkládá celý kód přes IME (`keydown key="Unidentified"`, pak Enter),
+ale text do pole s `inputmode="none"` nedorazí.
+
+### Změněno
+- Enter v skenovacím poli nečte hodnotu naslepo: když je pole prázdné (nebo IME ještě skládá), počká až 150 ms
+  na `input` / `compositionend` a teprve pak sken zpracuje. Enter už nevolá `preventDefault`.
+
+### Přidáno
+- Diagnostika: přepínač **režimu pole** – A `inputmode="none"` (výchozí), B obyčejné textové pole,
+  C fokus přes krátké `readOnly` (potlačí klávesnici, pole zůstane běžné). Volba se pamatuje v zařízení.
+- Diagnostika loguje i `beforeinput`, `input`, `compositionstart/update/end` (s `data`, `inputType` a hodnotou pole)
+  a hodnotu pole v okamžiku Enteru a 100 ms po něm; drží posledních 30 událostí.
+- Tlačítko **Odeslat výpis** – uloží výpis do listu `Log_chyb` (akce `diagnostika skenování`) přes nové API
+  `diagnostika.odesli`. Vyžaduje aktualizovaný `Api.gs` a novou verzi nasazení Apps Scriptu.
+
 ## 0.2.1 – 2026-10-30 – Oprava skenování na čtečce Urovo
 
 ### Opraveno
