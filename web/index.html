@@ -13,6 +13,16 @@
 </head>
 <body>
 <div id="app" class="app"><p class="nacitani">Načítám…</p></div>
+<!-- Skenovací pole je jedno a trvalé – obrazovky ho jen zobrazují a mění popisek (skener zůstává navázaný na pole). -->
+<div id="skener" class="skener" hidden>
+  <div class="skener-stav"><span class="skener-text">Pole není aktivní – klepni sem</span></div>
+  <label for="sken" class="skener-popisek"></label>
+  <div class="scan-radek">
+    <input id="sken" inputmode="none" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+    <button type="button" class="scan-btn" data-klavesnice aria-label="Napsat kód ručně">⌨</button>
+    <button type="button" class="scan-btn" data-kamera aria-label="Skenovat kamerou">📷</button>
+  </div>
+</div>
 <div id="toast" class="toast" role="status" aria-live="polite"></div>
 <noscript>Aplikace potřebuje zapnutý JavaScript.</noscript>
 </body>

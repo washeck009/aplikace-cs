@@ -1,4 +1,5 @@
 // Rozcestník modulů hlavní aplikace (zatím jen Expirace).
+import { napojPrepinacDiagnostiky } from '../diagnostika.js';
 import { NAZVY_ROLI } from '../podniky.js';
 import { VERZE } from '../verze.js';
 import { esc, hlavicka, napojHlavicku, prejdi } from '../ui.js';
@@ -16,8 +17,10 @@ export function zobrazRozcestnik(koren, relace) {
       <div><div class="tt">${m.nazev}</div><div class="ss">${m.popis}</div></div>
     </button>`).join('')}
   </main>
-  <footer class="pata hint">Aplikace CS · verze ${VERZE}</footer>`;
+  <footer class="pata hint">Aplikace CS · <span data-verze>verze ${VERZE}</span></footer>`;
 
   napojHlavicku(koren);
+  // 5× klepnutí na verzi = diagnostika skenování.
+  napojPrepinacDiagnostiky(koren.querySelector('[data-verze]'));
   koren.querySelectorAll('[data-modul]').forEach((b) => b.addEventListener('click', () => prejdi(b.dataset.modul)));
 }

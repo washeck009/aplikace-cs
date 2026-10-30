@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.1 – 2026-10-30 – Oprava skenování na čtečce Urovo
+
+### Opraveno
+- Na čtečce fungoval jen první sken, další se ztrácely, dokud uživatel neodešel z aplikace a nevrátil se.
+  Skener (IME) zůstával navázaný na skenovací pole, které obrazovka po skenu nahradila novým.
+  - Skenovací pole je teď **jedno trvalé** v `index.html` mimo překreslovanou část (dole na obrazovce);
+    obrazovky ho jen zobrazují/skrývají a mění popisek. `inputmode` se nemění.
+  - Po každém skenu, návratu do aplikace a zavření dialogu se fokus „odpojí a znovu připojí“ (blur → 50 ms → focus).
+  - Pojistka: rychle po sobě jdoucí znaky mimo pole se skládají do bufferu (konec Enterem nebo pauzou 100 ms);
+    konec skenu se pozná i z `beforeinput`/`input` a pauzy; `Unidentified`/229 vrátí fokus do pole.
+  - Skeny během načítání, dialogu nebo překreslení čekají ve frontě a zpracují se po vykreslení.
+  - Sken na obrazovce bez skenování (např. Domů) ukáže upozornění místo tichého zahození.
+
+### Přidáno
+- Ukazatel připravenosti nad skenovacím polem (zelený pruh = připraveno, šedý = klepni sem).
+- Ruční zadání kódu v samostatném dialogu (⌨).
+- Diagnostický režim: 5× klepnout na číslo verze v rozcestníku – panel s posledními 20 událostmi klávesnice
+  (typ, key, code, keyCode, cíl, čas, odstup) a stavem fokusu; *Kopírovat* zkopíruje výpis.
+
 ## 0.2.0 – 2026-10-30 – Etapa 2: Kontrola lokace
 
 ### Přidáno

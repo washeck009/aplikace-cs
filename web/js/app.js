@@ -1,6 +1,8 @@
 // Start aplikace: výběr obrazovky podle adresy (#/...), kontrola přihlášení, offline fronta, service worker.
 import { volej } from './api.js';
+import { obnovDiagnostiku } from './diagnostika.js';
 import { odesliFrontu } from './fronta.js';
+import { odpojSkener } from './skener.js';
 import { relace, ulozDnesZapocteno, ulozRelaci } from './uloziste.js';
 import { aktualizujIkonuFronty, toast } from './ui.js';
 import { zobrazPrihlaseni } from './obrazovky/prihlaseni.js';
@@ -17,6 +19,8 @@ const OBRAZOVKY = {
 function vykresli() {
   const koren = document.getElementById('app');
   const r = relace();
+  // Skeny během překreslení čekají ve frontě; obrazovka se skenováním si pole znovu zobrazí.
+  odpojSkener();
   if (!r) {
     zobrazPrihlaseni(koren);
   } else {
@@ -48,6 +52,7 @@ window.addEventListener('cs:davka-odeslana', (e) => {
   if (location.hash === '#/expirace') vykresli();
 });
 
+obnovDiagnostiku();
 vykresli();
 
 // Ověření přihlášení na serveru (účet mohl být deaktivován, role změněna). Bez signálu se nic neděje.

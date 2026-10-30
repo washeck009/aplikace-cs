@@ -9,7 +9,7 @@ import {
 import { vyfotit } from '../fotky.js';
 import { cekajiciDavky, pridejDoFronty } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
-import { napojSkener, skenovaciPole } from '../skener.js';
+import { skryjSkener, zobrazSkener } from '../skener.js';
 import { dialog, esc, hlavicka, napojHlavicku, toast } from '../ui.js';
 import { zvolenyPodnik } from '../uloziste.js';
 import { aplikujDavku, noveId } from '../zaznamy.js';
@@ -61,8 +61,8 @@ function krokSken() {
   koren.innerHTML = hlavicka('Kontrola – ' + nazevPodniku(), { zpet: '#/expirace' }) + `<main class="ph-body">
     ${s.zaklad ? '' : `<div class="chyba">Data podniku nejsou v zařízení stažená${s.chybaZakladu ? ': ' + esc(s.chybaZakladu) : '.'}</div>
       <button class="btn block" data-stahnout>Stáhnout data podniku</button>`}
-    ${skenovaciPole('Naskenuj štítek lokace', 'např. H2-P-37-1')}
-    <p class="hint">Skener napíše kód do pole a odešle Enter. Bez skeneru použij 📷 (kamera) nebo ⌨ (ruční zadání).</p>
+    <div class="task odkaz-sken">Naskenuj štítek lokace – pole pro sken je dole (zelený pruh = připraveno).
+      Bez skeneru použij 📷 (kamera) nebo ⌨ (ruční zadání).</div>
   </main>`;
   napojHlavicku(koren);
   koren.querySelector('[data-stahnout]')?.addEventListener('click', async (e) => {
@@ -70,18 +70,25 @@ function krokSken() {
     await stahniZaklad();
     if (aktivni()) vykresli();
   });
-  napojSkener(koren, (surovy) => {
-    const kod = normalizujKod(surovy);
-    if (jeEan(kod)) toast('Tohle je EAN zboží – nejdřív naskenuj štítek lokace.');
-    else if (!jeKodLokace(kod)) toast('Neznámý kód: ' + kod);
-    else if (!s.zaklad) toast('Nejdřív stáhni data podniku.');
-    else otevriLokaci(kod);
+  zobrazSkener({
+    popisek: 'Naskenuj štítek lokace',
+    placeholder: 'např. H2-P-37-1',
+    priKodu: (surovy) => {
+      const kod = normalizujKod(surovy);
+      if (jeEan(kod)) toast('Tohle je EAN zboží – nejdřív naskenuj štítek lokace.');
+      else if (!jeKodLokace(kod)) toast('Neznámý kód: ' + kod);
+      else if (!s.zaklad) toast('Nejdřív stáhni data podniku.');
+      else return otevriLokaci(kod);
+    }
   });
 }
 
 /* ---------- 2) Lokace ---------- */
 
-/** Zobrazí lokaci hned z dat v zařízení a na pozadí načte aktuální stav ze serveru. */
+/**
+ * Zobrazí lokaci hned z dat v zařízení a na pozadí načte aktuální stav ze serveru.
+ * Vrátí se po prvním vykreslení – další sken se nemusí čekat na server.
+ */
 async function otevriLokaci(kod) {
   const cislo = ++cisloNacteni;
   // Fronta mezitím mohla do uložených dat promítnout odeslané dávky – číst je čerstvě.
@@ -95,7 +102,10 @@ async function otevriLokaci(kod) {
     zaznamy: await sFrontou(kod, zCache), nacita: true, zprava: ''
   };
   if (aktivni()) vykresli();
+  nactiZeServeru(kod, cislo);
+}
 
+async function nactiZeServeru(kod, cislo) {
   try {
     const odp = await volej('lokace.nacti', { podnik: s.podnik, kod });
     if (cislo !== cisloNacteni || !s.lokace) return;
@@ -160,7 +170,7 @@ function krokLokace() {
     ${L.zaznamy.length ? L.zaznamy.map(kartaZaznamu).join('') : '<p class="hint">Na lokaci zatím nic neevidujeme.</p>'}
     ${s.nove.length ? `<div class="h">Nově přidané</div>${s.nove.map(kartaNoveho).join('')}` : ''}
     <div class="h">Našel jsi tu další zboží?</div>
-    ${skenovaciPole('Naskenuj EAN nového zboží', 'EAN')}
+    <p class="hint">Naskenuj jeho EAN – pole pro sken je dole. Naskenovaná jiná lokace nabídne přechod na ni.</p>
   </main>
   <footer class="foot">
     <button class="btn gry" data-bez>Bez expiračního zboží</button>
@@ -184,12 +194,16 @@ function krokLokace() {
   }));
   koren.querySelector('[data-bez]').addEventListener('click', bezExpiracnihoZbozi);
   koren.querySelector('[data-hotovo]').addEventListener('click', lokaceHotova);
-  napojSkener(koren, (surovy) => {
-    const kod = normalizujKod(surovy);
-    if (jeEan(kod)) otevriNovy(kod);
-    else if (!jeKodLokace(kod)) toast('Neznámý kód: ' + kod);
-    else if (kod === L.kod.toUpperCase()) toast('Tuhle lokaci právě kontroluješ.');
-    else prepnoutNaLokaci(kod);
+  zobrazSkener({
+    popisek: `Naskenuj EAN nového zboží na ${L.kod}`,
+    placeholder: 'EAN',
+    priKodu: (surovy) => {
+      const kod = normalizujKod(surovy);
+      if (jeEan(kod)) otevriNovy(kod);
+      else if (!jeKodLokace(kod)) toast('Neznámý kód: ' + kod);
+      else if (kod === s.lokace.kod.toUpperCase()) toast('Tuhle lokaci právě kontroluješ.');
+      else return prepnoutNaLokaci(kod);
+    }
   });
 }
 
@@ -242,7 +256,8 @@ async function prepnoutNaLokaci(kod) {
     });
     if (!prejit) return;
   }
-  otevriLokaci(kod);
+  // Počkat na vykreslení nové lokace – další sken ve frontě už patří k ní.
+  await otevriLokaci(kod);
 }
 
 function zavritLokaci() {
@@ -344,6 +359,7 @@ function otevriNovy(ean) {
 }
 
 function krokNovy() {
+  skryjSkener(); // ve formuláři se píše do jeho polí
   const f = s.formular;
   const p = f.polozka;
   koren.innerHTML = hlavicka('Nové zboží – ' + s.lokace.kod, { zpet: HASH }) + `<main class="ph-body">
@@ -416,6 +432,7 @@ function otevriUpravu(id) {
 }
 
 function krokUprava() {
+  skryjSkener();
   const f = s.formular;
   const z = s.lokace.zaznamy.find((x) => x.id === f.id);
   koren.innerHTML = hlavicka('Upravit záznam', { zpet: HASH }) + `<main class="ph-body">

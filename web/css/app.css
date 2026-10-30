@@ -97,16 +97,29 @@ input, select, textarea { font: inherit; }
 .fronta-radek .btn { min-height: 40px; padding: 8px 10px; }
 .chyba-text { color: var(--red); font-weight: 600; }
 
-/* Skenovací pole */
-.scan { background: #fff; border: 2px dashed var(--pri); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
-.scan label { font-size: 13px; color: var(--mut); display: block; margin-bottom: 6px; font-weight: 600; }
-.scan-radek { display: flex; gap: 6px; }
-.scan input {
-  flex: 1; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px;
-  font-size: 20px; letter-spacing: .5px; text-transform: uppercase;
+/* Skenovací pole – trvalé, dole na obrazovce (palcem dosažitelné); pruh nahoře ukazuje připravenost */
+.skener {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; max-width: 480px; margin: 0 auto;
+  background: #fff; border-top: 6px solid var(--gry); box-shadow: 0 -4px 16px rgba(0, 0, 0, .12);
+  padding: 8px 12px calc(10px + env(safe-area-inset-bottom));
 }
-.scan input:focus { outline: 3px solid var(--pri2); border-color: var(--pri); }
+.skener[hidden] { display: none; }
+.skener.pripraven { border-top-color: var(--grn); }
+.skener-stav { font-size: 12px; font-weight: 700; color: var(--mut); margin-bottom: 2px; }
+.skener.pripraven .skener-stav { color: var(--grn); }
+.skener-popisek { font-size: 13px; color: var(--ink); display: block; margin-bottom: 6px; font-weight: 600; }
+.scan-radek { display: flex; gap: 6px; }
+.skener input {
+  flex: 1; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px;
+  font-size: 20px; letter-spacing: .5px; text-transform: uppercase; background: var(--gryb);
+}
+.skener.pripraven input { background: #fff; border-color: var(--grn); }
+.skener input:focus { outline: none; }
 .scan-btn { flex: 0 0 52px; border: 1px solid var(--line); background: var(--gryb); border-radius: 8px; font-size: 22px; }
+body.se-skenerem .app { padding-bottom: var(--sken-vyska, 130px); }
+body.se-skenerem .foot { bottom: var(--sken-vyska, 130px); }
+.rucni-kod { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 8px; font-size: 20px; text-transform: uppercase; }
+.odkaz-sken { background: var(--pri2); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
 
 /* Lokace a záznamy */
 .loc { font-size: 26px; font-weight: 700; letter-spacing: .5px; }
@@ -177,6 +190,16 @@ input, select, textarea { font: inherit; }
   padding: 12px 18px; border-radius: 10px; font-size: 15px; opacity: 0; transition: opacity .25s;
   pointer-events: none; z-index: 99; max-width: 90vw; text-align: center;
 }
-/* Nad patičkou s tlačítky */
+/* Nad patičkou s tlačítky a nad skenovacím polem */
 body:has(.foot) .toast { bottom: 90px; }
+body.se-skenerem .toast { bottom: calc(var(--sken-vyska, 130px) + 16px); }
+body.se-skenerem:has(.foot) .toast { bottom: calc(var(--sken-vyska, 130px) + 90px); }
+
+/* Diagnostika skenování */
+.diagnostika {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 90; max-height: 45vh; overflow: auto;
+  background: rgba(10, 15, 25, .92); color: #e8edf3; font: 11px/1.35 ui-monospace, Consolas, monospace; padding: 6px 8px;
+}
+.diagnostika pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-all; }
+.diagnostika button { font: 12px system-ui; background: #3a4859; color: #fff; border: 0; border-radius: 6px; padding: 6px 10px; margin-right: 4px; }
 .toast.on { opacity: 1; }

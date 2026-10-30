@@ -13,8 +13,9 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
 - Po přihlášení se číselník, lokace, záznamy na lokacích a nastavení podniku uloží do zařízení (pro práci při slabém signálu).
 
 **Etapa 2 – Kontrola lokace (čtečka)**
-- Skenovací pole drží fokus a reaguje na Enter (hardwarový skener Urovo v režimu klávesnice). Na čtečce nevyskakuje
-  klávesnice; ⌨ ji zapne pro ruční zadání, 📷 skenuje kamerou.
+- Skenovací pole je dole na obrazovce, drží fokus a reaguje na Enter (hardwarový skener Urovo v režimu klávesnice).
+  Zelený pruh nad polem = připraveno ke skenování, šedý = klepni na pole. Na čtečce nevyskakuje klávesnice;
+  ⌨ otevře ruční zadání kódu, 📷 skenuje kamerou.
 - Po naskenování lokace se ukáže evidované zboží s pásmem, zbývajícími dny, kusy, posledním ověřením a poznámkou.
   U každého řádku ✓ Je tu / ✗ Není tu / ✎ Upravit (expirace, kusy, poznámka, Vydáno / Zlikvidováno, fotka).
 - Přidání zboží skenem EAN, expirace MM/RR s automatickým lomítkem; neznámý EAN → ruční číslo položky a příznak
@@ -187,3 +188,6 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
   (`davka_<id>`), opakované odeslání vrátí původní výsledek.
 - Čas kontroly z offline fronty se bere z čtečky, nejvýš 2 dny zpět (starší dávka dostane čas přijetí).
 - Neočekávané chyby serveru se zapisují do listu `Log_chyb`.
+- **Diagnostika skenování** na čtečce: v rozcestníku 5× rychle klepni na *verze …* → nahoře se ukáže panel
+  s posledními 20 událostmi klávesnice a stavem fokusu (zůstane zapnutý i po restartu; vypíná se tlačítkem *Vypnout*).
+  *Kopírovat* zkopíruje výpis do schránky – hodí se poslat při hlášení chyby.
