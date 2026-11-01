@@ -2,6 +2,7 @@
 // Při výpadku signálu se opakují; ikona v hlavičce ukazuje počet neodeslaných (událost cs:fronta).
 import { volej } from './api.js';
 import { frontaPridej, frontaSmaz, frontaUloz, frontaVse, nactiZaklad, ulozZaklad } from './db.js';
+import { polozkaPodleEan } from './expirace.js';
 import { relace } from './uloziste.js';
 import { aplikujDavku } from './zaznamy.js';
 
@@ -176,7 +177,7 @@ async function promitniDoCache(p) {
     zaklad.lokace.push({ kod: p.data.lokace, k_overeni: true });
   }
   p.data.radky.filter((r) => r.akce === 'nový' && r.k_doplneni).forEach((r) => {
-    if (!zaklad.polozky.some((x) => x.ean === r.ean)) {
+    if (!polozkaPodleEan(zaklad, r.ean)) {
       zaklad.polozky.push({ ean: r.ean, cislo_polozky: r.cislo_polozky, nazev: '', k_doplneni: true });
     }
   });

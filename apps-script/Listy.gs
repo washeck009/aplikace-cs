@@ -95,6 +95,42 @@ function zapisRadky_(tabulka, objekty) {
   });
 }
 
+/**
+ * Jako zapisRadky_, ale u mnoha změn (importy) přepíše celý list jedním zápisem – po jednotlivých řádcích
+ * by desítky tisíc změn trvaly déle, než Apps Script dovolí. Prázdné řádky zůstanou prázdné.
+ */
+function zapisRadkyHromadne_(tabulka, objekty) {
+  if (objekty.length <= 50) {
+    zapisRadky_(tabulka, objekty);
+    return;
+  }
+  const posledni = tabulka.list.getLastRow();
+  if (posledni < 2) return;
+  const sirka = tabulka.hlavicka.length;
+  const radky = [];
+  for (let i = 2; i <= posledni; i++) radky.push(new Array(sirka).fill(''));
+  tabulka.radky.forEach(function (o) {
+    if (o._radek < 2 || o._radek > posledni) return;
+    radky[o._radek - 2] = tabulka.hlavicka.map(function (h) {
+      return (h in o && o[h] !== null && o[h] !== undefined) ? o[h] : '';
+    });
+  });
+  (TEXTOVE_SLOUPCE[tabulka.list.getName()] || []).forEach(function (s) {
+    const c = tabulka.hlavicka.indexOf(s);
+    if (c >= 0) tabulka.list.getRange(2, c + 1, radky.length, 1).setNumberFormat('@');
+  });
+  tabulka.list.getRange(2, 1, radky.length, sirka).setValues(radky);
+}
+
+/** Nahradí v listu všechny řádky podniku novými (ostatní podniky zůstanou) – import stavu lokací. */
+function nahradRadkyPodniku_(nazev, podnik, objekty) {
+  const tabulka = nactiList_(nazev);
+  const zbyle = tabulka.radky.filter(function (r) { return text_(r.podnik) !== podnik; });
+  const posledni = tabulka.list.getLastRow();
+  if (posledni >= 2) tabulka.list.getRange(2, 1, posledni - 1, Math.max(1, tabulka.hlavicka.length)).clearContent();
+  pridejRadky_(nazev, zbyle.concat(objekty));
+}
+
 /** Spustí funkci pod zámkem skriptu (všechny zápisy do tabulky). */
 function sZamkem_(fn) {
   const zamek = LockService.getScriptLock();

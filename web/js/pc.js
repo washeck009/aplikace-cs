@@ -1,15 +1,20 @@
-// Řízení (PC část: vedoucí, manažer, admin) – rám s postranním menu podle makety. Zatím je hotová jen obrazovka Úkoly.
-import { NAZVY_ROLI, podnikPodleKodu } from './podniky.js';
-import { esc, nastavBarvuPodniku, odhlasit, prejdi, toast } from './ui.js';
+// Řízení (PC část: vedoucí, manažer, admin) – rám s postranním menu podle makety a společné prvky obrazovek.
+// Oprávnění hlídá i server: vedoucí jen čte (přehled, záznamy, úkoly), manažer navíc zadává úkoly,
+// admin navíc spravuje uživatele, nastavení a importy.
+import { NAZVY_ROLI, PODNIKY, podnikPodleKodu } from './podniky.js';
+import { esc, nastavBarvuPodniku, odhlasit, prejdi } from './ui.js';
+import { ulozPodnik } from './uloziste.js';
 
 export const ROLE_PC = ['vedouci', 'manazer', 'admin'];
+export const ROLE_UKOLY = ['manazer', 'admin']; // zadávání a rušení úkolů
 
-// [klíč, popisek, adresa (bez ní = připravujeme), jen pro roli]
+// [klíč, popisek, adresa, jen pro role]
 const MENU = [
-  ['prehled', '📊 Přehled'],
+  ['prehled', '📊 Přehled', '#/pc/prehled'],
   ['ukoly', '📋 Úkoly', '#/pc/ukoly'],
-  ['zaznamy', '🗂 Záznamy'],
-  ['sprava', '⚙ Správa', null, 'admin']
+  ['zaznamy', '🗂 Záznamy', '#/pc/zaznamy'],
+  ['sprava', '⚙ Správa', '#/pc/sprava', ['admin']],
+  ['importy', '⇪ Importy', '#/pc/importy', ['admin']]
 ];
 
 /**
@@ -22,8 +27,8 @@ export function pcRam(koren, relace, aktivni, obsah, podnik) {
   koren.innerHTML = `<div class="pc">
     <nav class="side">
       <div class="lg">Aplikace CS<br><span class="lg-sub">Expirace – řízení</span></div>
-      ${MENU.filter((m) => !m[3] || relace.role === m[3]).map(([klic, popisek, cil]) =>
-        `<button class="${klic === aktivni ? 'on' : ''}" data-menu="${klic}"${cil ? ` data-cil="${cil}"` : ''}>${popisek}${cil ? '' : ' <span class="tag">připravujeme</span>'}</button>`).join('')}
+      ${MENU.filter((m) => !m[3] || m[3].includes(relace.role)).map(([klic, popisek, cil]) =>
+        `<button class="${klic === aktivni ? 'on' : ''}" data-cil="${cil}">${popisek}</button>`).join('')}
       <button data-rozcestnik>← Rozcestník</button>
       <div class="side-pata">Přihlášen: ${esc(relace.jmeno)} (${esc(NAZVY_ROLI[relace.role] || relace.role)})
         <button class="odkaz" data-odhlasit>Odhlásit</button></div>
@@ -33,10 +38,38 @@ export function pcRam(koren, relace, aktivni, obsah, podnik) {
       <main class="main">${obsah}</main>
     </div>
   </div>`;
-  koren.querySelectorAll('[data-menu]').forEach((b) => b.addEventListener('click', () => {
-    if (b.dataset.cil) prejdi(b.dataset.cil);
-    else toast('Připravujeme – bude v další verzi.');
-  }));
+  koren.querySelectorAll('.side [data-cil]').forEach((b) => b.addEventListener('click', () => prejdi(b.dataset.cil)));
   koren.querySelector('[data-rozcestnik]').addEventListener('click', () => prejdi('#/'));
   koren.querySelector('[data-odhlasit]').addEventListener('click', odhlasit);
 }
+
+/** Přepínač podniku (záložky) – HTML. */
+export const prepinacPodniku = (podnik) => `<div class="tabs">${PODNIKY.map((p) =>
+  `<button class="chip${p.kod === podnik ? ' on' : ''}" data-podnik="${p.kod}">${esc(p.nazev)}</button>`).join('')}</div>`;
+
+/** Napojí přepínač podniku: uloží volbu a zavolá `znovu()` (překreslení obrazovky). */
+export function napojPrepinacPodniku(koren, znovu) {
+  koren.querySelectorAll('[data-podnik]').forEach((b) => b.addEventListener('click', () => {
+    ulozPodnik(b.dataset.podnik);
+    znovu();
+  }));
+}
+
+/** Obrazovka jen pro některé role – jinak hláška v rámu. Vrátí true, když uživatel smí dál. */
+export function overRoli(koren, relace, aktivni, role, nadpis) {
+  if (role.includes(relace.role)) return true;
+  pcRam(koren, relace, aktivni, `<h1>${esc(nadpis)}</h1><div class="chyba">Tuto část vidí jen ${role.length === 1 ? 'admin'
+    : 'vedoucí, manažer a správce'}.</div>`);
+  return false;
+}
+
+/** Datum a čas „30. 10. 2026 19:46“ (bez času, když je půlnoc a `bezCasu`). */
+export function datumCas(iso, bezCasu = false) {
+  if (!iso) return '–';
+  const d = new Date(iso);
+  const datum = `${d.getDate()}. ${d.getMonth() + 1}. ${d.getFullYear()}`;
+  return bezCasu ? datum : `${datum} ${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+/** Celé číslo s mezerami po tisících. */
+export const cislo = (n) => (n === null || n === undefined ? '–' : Number(n).toLocaleString('cs-CZ'));

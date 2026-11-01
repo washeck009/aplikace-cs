@@ -8,7 +8,7 @@ import { esc, hlavicka, napojHlavicku, prejdi } from '../ui.js';
 const MODULY = [
   { cil: '#/expirace', ikona: '⏳', nazev: 'Expirace', popis: 'Kontrola expirací zboží na lokacích' },
   // Jen vedoucí, manažer, admin – skladník dlaždici nevidí (a server mu tyto akce odmítne).
-  { cil: '#/pc/ukoly', ikona: '💻', nazev: 'Expirace – řízení', popis: 'Úkoly, přehledy, správa', role: ROLE_PC }
+  { cil: '#/pc/prehled', ikona: '💻', nazev: 'Expirace – řízení', popis: 'Přehledy, záznamy, úkoly, správa', role: ROLE_PC }
 ];
 
 export function zobrazRozcestnik(koren, relace) {

@@ -9,6 +9,9 @@ node_modules/
 *.xlsx
 *.xls
 *.csv
+# Výjimka: ukázkové soubory se SMYŠLENÝMI daty pro vyzkoušení importů (nic ze skutečného skladu sem nedávat).
+!docs/testovaci-data/*.csv
+!docs/testovaci-data/*.xlsx
 
 # Tajné hodnoty
 .env

@@ -21,10 +21,26 @@ function mapaAkci_() {
     'foto.nahraj': { role: 'skladnik', fn: akceFotoNahraj_ },
     'zaznam.stav': { role: 'skladnik', fn: akceZaznamStav_ },
     'ukoly.moje': { role: 'skladnik', fn: akceUkolyMoje_ },
+    'diagnostika.odesli': { role: 'skladnik', fn: akceDiagnostikaOdesli_ },
+    // Řízení: vedoucí vidí přehled, záznamy a úkoly; zadávat a rušit úkoly smí manažer a admin.
+    'prehled.data': { role: 'vedouci', fn: akcePrehledData_ },
+    'zaznamy.seznam': { role: 'vedouci', fn: akceZaznamySeznam_ },
+    'kontroly.log': { role: 'vedouci', fn: akceKontrolyLog_ },
     'ukoly.seznam': { role: 'vedouci', fn: akceUkolySeznam_ },
-    'ukoly.zadej': { role: 'vedouci', fn: akceUkolyZadej_ },
-    'ukoly.zrus': { role: 'vedouci', fn: akceUkolyZrus_ },
-    'diagnostika.odesli': { role: 'skladnik', fn: akceDiagnostikaOdesli_ }
+    'ukoly.zadej': { role: 'manazer', fn: akceUkolyZadej_ },
+    'ukoly.zrus': { role: 'manazer', fn: akceUkolyZrus_ },
+    // Správa a importy: jen admin.
+    'import.info': { role: 'admin', fn: akceImportInfo_ },
+    'import.polozky': { role: 'admin', fn: akceImportPolozky_ },
+    'import.lokace': { role: 'admin', fn: akceImportLokace_ },
+    'import.stav': { role: 'admin', fn: akceImportStav_ },
+    'sprava.uzivatele': { role: 'admin', fn: akceSpravaUzivatele_ },
+    'sprava.uzivatel.uloz': { role: 'admin', fn: akceSpravaUzivatelUloz_ },
+    'sprava.uzivatel.pin': { role: 'admin', fn: akceSpravaUzivatelPin_ },
+    'sprava.nastaveni': { role: 'admin', fn: akceSpravaNastaveni_ },
+    'sprava.nastaveni.uloz': { role: 'admin', fn: akceSpravaNastaveniUloz_ },
+    'sprava.polozky': { role: 'admin', fn: akceSpravaPolozky_ },
+    'sprava.polozka.uloz': { role: 'admin', fn: akceSpravaPolozkaUloz_ }
   };
 }
 

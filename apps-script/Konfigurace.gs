@@ -10,12 +10,19 @@ const PODNIKY = {
 };
 
 // Role a jejich úroveň – vyšší úroveň smí vše, co nižší.
+// Vedoucí: přehled, záznamy, úkoly jen ke čtení. Manažer: navíc zadává a ruší úkoly. Admin: navíc správa a importy.
 const ROLE_UROVEN = {
   skladnik: 1,
   vedouci: 2,
-  manazer: 2,
-  admin: 3
+  manazer: 3,
+  admin: 4
 };
+
+// Kontrolují se jen lokace v halách a policové galerii: H nebo P a hned číslice (H1, H2, P0…; ne PAL, PRIJEM).
+const LOKACE_KONTROLOVANA = /^[HP]\d/;
+// Regálová lokace hala-řada-sloupec(-nosník), např. H2-P-37-1, H1-AB-12. H/P lokace jiného tvaru
+// (H2-ZASOBNIK, P0-NEJAKE MISTO) se při importu založí jako neaktivní – admin je může zapnout.
+const LOKACE_REGALOVA = /^[HP]\d+-[A-Z0-9]{1,3}-\d+(-[A-Z0-9]{1,3})?$/;
 
 // Zámek účtu po chybných PINech.
 const ZAMEK_POKUSU = 5;
@@ -49,8 +56,16 @@ const MAX_LOKACI_RUCNI_UKOL = 300;
 const PRAVIDLA_PLANOVACE = {
   a: 'Lokace nekontrolované déle než',
   b: 'Červené pásmo – ověřit, že zboží je na lokaci',
-  c: 'Zboží na skladě bez kontroly'
+  c: 'Zboží na skladě bez kontroly',
+  d: 'Naskladněno po poslední kontrole'
 };
+
+// Pořadí pravidel plánovače – nejnaléhavější první (jeho lokace mají přednost).
+const PORADI_PRAVIDEL = ['b', 'd', 'a', 'c'];
+
+// Kontroly, které nejsou dokončenou kontrolou lokace (nepočítají se do pokrytí ani „poslední kontroly“).
+const AKCE_IMPORT_UZAVREL = 'import uzavřel';
+const POZNAMKA_BLIZI_SE = 'Blíží se expirace';
 
 // Listy a jejich sloupce. Pořadí slouží jen pro založení – kód vždy čte podle názvů.
 const LISTY = {
@@ -65,7 +80,9 @@ const LISTY = {
   Ukoly: ['id', 'podnik', 'typ', 'komu', 'lokace', 'polozka', 'termin', 'popis', 'stav', 'zadal', 'zadano', 'splneno', 'splnil',
     'hotove_lokace'],
   Nastaveni: ['podnik', 'klic', 'hodnota', 'popis'],
-  Import_stav_lokaci: ['podnik', 'lokace', 'cislo_polozky', 'mnozstvi', 'datum_importu'],
+  // naskladneno = DATUM z ERP (poslední naskladnění položky do lokace), mj = základní měrná jednotka (etapa 4).
+  // Jen hlídané zboží (z číselníku podniku); každý import stavu nahradí předchozí import podniku.
+  Import_stav_lokaci: ['podnik', 'lokace', 'cislo_polozky', 'mnozstvi', 'datum_importu', 'naskladneno', 'mj'],
   Log_chyb: ['cas', 'akce', 'uzivatel', 'chyba']
 };
 
@@ -86,7 +103,7 @@ const DATUMOVE_SLOUPCE = {
   Zaznamy: ['zalozeno', 'overeno', 'zmeneno'],
   Kontroly: ['cas'],
   Ukoly: ['zadano', 'splneno'],
-  Import_stav_lokaci: ['datum_importu'],
+  Import_stav_lokaci: ['datum_importu', 'naskladneno'],
   Log_chyb: ['cas']
 };
 const DATUMOVE_SLOUPCE_BEZ_CASU = {
@@ -103,6 +120,8 @@ const VYCHOZI_NASTAVENI = [
   ['planovac_dni_bez_kontroly', 'Plánovač: lokace bez kontroly déle než (dní)', 60, 60],
   ['planovac_cervene_overit_dni', 'Plánovač: červené pásmo ověřit alespoň 1× za (dní)', 30, 30],
   ['planovac_max_lokaci_ukol', 'Plánovač: max. lokací v jednom úkolu', 20, 20],
+  ['planovac_naskladneno_zapnuto', 'Plánovač: pravidlo d) Naskladněno po poslední kontrole (TRUE/FALSE)', true, true],
+  ['planovac_naskladneno_dni', 'Plánovač d): jen naskladnění za posledních N dní', 14, 14],
   ['slozka_fotky_id', 'ID složky na Google Disku pro fotky', '', '']
 ];
 

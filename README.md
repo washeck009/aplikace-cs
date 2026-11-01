@@ -35,12 +35,37 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
 - **Blíží se expirace** (čtečka): záznamy na lokacích podle zbývajících dní, filtr *Červené + expirované* / *Žluté* /
   *Vše*, akce *Na lokaci* (otevře kontrolu lokace), *Vydáno*, *Zlikvidováno* – zapíše se do logu s kým a kdy
   (i bez signálu přes frontu). Na Domů je počet červených + expirovaných.
-- **PC – Úkoly** (vedoucí, manažer, admin; v rozcestníku dlaždice *Expirace – řízení*): nový úkol (komu, lokace – jednotlivé,
+- **PC – Úkoly** (v rozcestníku dlaždice *Expirace – řízení*): nový úkol (komu, lokace – jednotlivé,
   čárkou, rozsah „od až do“ v rámci řady, volitelně zboží, termín, poznámka), přehled úkolů s průběhem, zrušení,
-  pravidla plánovače. Ostatní položky postranního menu jsou zatím „připravujeme“.
+  pravidla plánovače.
 - **Plánovač** (každý den kolem 5:30): pro každý podnik a pravidlo (červené pásmo neověřené / lokace bez kontroly /
   zboží z importu bez záznamů) nejvýš jeden otevřený úkol pro „kdokoliv“ s max. 20 nejnaléhavějšími lokacemi
   podle trasy; bez duplicit s otevřenými úkoly. Ručně: menu *Aplikace CS → Plánovač – spustit teď*.
+
+**Etapa 4 – Řízení: přehled, záznamy, správa, importy**
+- **Oprávnění v řízení:** vedoucí vidí přehled, záznamy a úkoly (i kolik je hotovo), ale úkoly nezadává ani neruší;
+  manažer navíc zadává a ruší úkoly; admin navíc Správa a Importy. Hlídá i server.
+- **Přehled** za zvolený podnik: pokrytí lokací za 30 / 90 dní, kontroly tento týden proti cíli, červené pásmo,
+  expirované na lokaci, zboží bez kontroly a naskladněné po kontrole (z importu), plnění úkolů, položky k doplnění;
+  **mapa pokrytí** (řádek = hala · řada, barva podle dní od kontroly), kontroly po lidech za 8 týdnů, zboží podle pásem
+  + trend, **FEFO** (odkud vychystávat: nejbližší expirace, při shodě dřív naskladněné). Výpočet drží server 5 minut v cache.
+- **Záznamy**: hledání (lokace, EAN, číslo, název), filtr pásma a stavu, řazení kliknutím na sloupec, **export .xlsx**
+  s aktuálním filtrem a **log kontrol** za období (max. 366 dní).
+- **Správa** (admin): uživatelé (přidat – PIN se vygeneruje a ukáže jednou, role, aktivní, nový PIN / odemknutí),
+  nastavení po podnicích, položky k doplnění (doplnit název nebo spárovat s číslem položky).
+- **Importy** (admin) z xlsx / csv, podnik se volí při importu, vždy náhled → *Importovat*:
+  - *Číselník* (EAN, Číslo položky, Název položky) – nové přidá, změny přepíše, položky „k doplnění“ doplní.
+  - *Lokace* (LOKACE) – jen H nebo P s číslicí (H1, P0…); regálové `H2-P-37-1` / `H1-AB-12` aktivní, zóny
+    (`H2-ZASOBNIK`) neaktivní; BAL, RAMP, PRIJEM, PAL… se přeskočí.
+  - *Stav na lokacích* (export DATUM, UMISTENI, ID_POLOZKY, POL_NAZEV, MNOZ_ZAKL_MJ, ZAKL_MJ) – prohlížeč sečte řádky
+    za lokaci a položku (DATUM = nejnovější naskladnění) a pošle jen lokace H/P a hlídané zboží. Server uzavře zboží,
+    které z lokace zmizelo (*Není na lokaci*, v Kontrolách `import uzavřel`; záznamy založené / ověřené po čase
+    exportu se neuzavřou), založí chybějící lokace H/P a nahradí předchozí import podniku.
+- **Plánovač d) Naskladněno po poslední kontrole**: lokace s hlídaným zbožím naskladněným (DATUM) po poslední dokončené
+  kontrole lokace, jen naskladnění za posledních `planovac_naskladneno_dni` (výchozí 14); vypíná
+  `planovac_naskladneno_zapnuto`. Do plánovače ani pokrytí nepatří lokace mimo H/P.
+- EAN a čísla položek se porovnávají bez úvodních nul (Excel je u čísel zahazuje) – sken `0…` najde i EAN uložený bez nuly.
+- Ukázkové soubory se **smyšlenými** daty pro vyzkoušení importů: [`docs/testovaci-data/`](docs/testovaci-data/).
 
 ## Struktura repa
 
@@ -73,8 +98,8 @@ Celé nastavení se dělá jednou. Potřebuješ osobní Google účet (Gmail) a 
    - zkontroluj **Časové pásmo: (GMT+01:00) Praha**.
 4. Zpět v **Editoru** (ikona `< >`) otevři `appsscript.json`, smaž obsah a vlož obsah souboru
    [`apps-script/appsscript.json`](apps-script/appsscript.json).
-5. Pro každý soubor `.gs` ze složky [`apps-script/`](apps-script/) – `Api.gs`, `Auth.gs`, `Fotky.gs`,
-   `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`, `Planovac.gs`, `Setup.gs`, `Ukoly.gs`:
+5. Pro každý soubor `.gs` ze složky [`apps-script/`](apps-script/) – `Api.gs`, `Auth.gs`, `Fotky.gs`, `Import.gs`,
+   `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`, `Planovac.gs`, `Prehled.gs`, `Setup.gs`, `Sprava.gs`, `Ukoly.gs`:
    - klikni na **+** vedle *Soubory* → **Skript**, zadej název bez `.gs` (např. `Api`),
    - smaž předvyplněný obsah a vlož celý obsah souboru z repa.
 6. Výchozí soubor `Kód.gs` smaž (tři tečky vedle názvu → *Smazat*).
@@ -148,6 +173,48 @@ URL do veřejného repa patří – bez platného PINu se přes ni nic nedostane
 4. Přihlas se: vyber jméno, zadej PIN. Čtečka si pamatuje posledního uživatele.
 
 Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí stáhne a projeví se při dalším otevření aplikace.
+
+---
+
+## Přechod na etapu 4 (verze 0.4.0, pro už nasazenou verzi 0.3.1)
+
+Web (verze **0.4.0**) se nasadí sám po pushi do `main`. V Apps Scriptu udělej ručně:
+
+1. V tabulce **Rozšíření → Apps Script**.
+2. **Nové soubory** (**+** vedle *Soubory* → **Skript**, název bez `.gs`), obsah z repa:
+   - `Import` – [`apps-script/Import.gs`](apps-script/Import.gs),
+   - `Prehled` – [`apps-script/Prehled.gs`](apps-script/Prehled.gs),
+   - `Sprava` – [`apps-script/Sprava.gs`](apps-script/Sprava.gs).
+3. **Nahraď celý obsah** změněných souborů verzí z repa: `Api.gs`, `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`,
+   `Planovac.gs`, `Ukoly.gs`. (`Auth.gs`, `Setup.gs`, `Fotky.gs` a `appsscript.json` se nezměnily.) Ulož (Ctrl+S).
+4. Vrať se do tabulky a **obnov stránku** (F5).
+5. **Aplikace CS → Založit / doplnit listy (setup)** – do listu `Import_stav_lokaci` přidá sloupce `naskladneno` a `mj`
+   a do `Nastaveni` obou podniků řádky `planovac_naskladneno_zapnuto` (TRUE) a `planovac_naskladneno_dni` (14).
+   Nic existujícího nepřepíše.
+6. **Nasadit → Spravovat nasazení** → tužka → *Verze: **Nová verze*** → **Nasadit**. URL zůstane stejná.
+   (Nová oprávnění Google nežádá – cache a komprese jsou součástí Apps Scriptu.)
+7. Spouštěč plánovače znovu instalovat **nemusíš** – pravidlo d) běží v tom stávajícím. Chceš-li ho vyzkoušet hned
+   po prvním importu stavu: **Aplikace CS → Plánovač – spustit teď**.
+8. Na PC otevři aplikaci (Ctrl+F5) – v rozcestníku verze **0.4.0**, dlaždice *Expirace – řízení* vede na Přehled.
+9. **První importy** (řízení → *Importy*, jako admin, pro každý podnik zvlášť – nahoře zvol podnik):
+   číselník → lokace (pokud máš seznam) → stav na lokacích. U stavu zkontroluj *Stav ke dni* (předvyplní se z data
+   souboru) a v náhledu počet „Uzavře se“ – při prvním importu se uzavře zboží, které podle ERP na lokaci není.
+
+> Role: v listu `Uzivatele` (nebo v řízení → Správa) – **vedoucí** od této verze úkoly jen čte; kdo má úkoly zadávat,
+> potřebuje roli **manažer**.
+
+---
+
+## Ověření etapy 4
+
+- [ ] Vedoucí na PC: Přehled za DEK i Stachemu (přepínač nahoře), Záznamy → *⬇ Excel* stáhne .xlsx s aktuálním
+      filtrem (čísla položek s úvodními nulami jako text), log kontrol za období. V Úkolech nevidí formulář ani *Zrušit*.
+- [ ] Admin: Importy → číselník (např. [`docs/testovaci-data/ciselnik-ukazka.csv`](docs/testovaci-data/ciselnik-ukazka.csv)
+      na zkoušku, nebo ostrý export) → náhled → *Importovat*; v listu `Polozky` jsou nové řádky.
+- [ ] Admin: Importy → stav na lokacích (ostrý export) → náhled ukáže lokace H/P, hlídané zboží a co se uzavře →
+      *Importovat*; v `Zaznamy` mají uzavřené záznamy stav *Není na lokaci*, v `Kontroly` je akce `import uzavřel`.
+- [ ] Správa → Přidat uživatele → ukáže se PIN; uživatel se s ním přihlásí.
+- [ ] *Plánovač – spustit teď* po importu stavu: v Úkolech přibude úkol „Naskladněno po poslední kontrole…“.
 
 ---
 
@@ -254,7 +321,11 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
   odpověď `{"ok": true, "data"}` nebo `{"ok": false, "error", "kod"}`.
   Akce: `uzivatele.seznam`, `login`, `logout`, `ja`, `data.zaklad`, `lokace.nacti`, `lokace.dokonci`,
   `kontroly.dnes` (+ počet otevřených úkolů), `foto.nahraj`, `zaznam.stav` (Vydáno/Zlikvidováno, idempotentní podle
-  `id_akce`), `ukoly.moje`, `diagnostika.odesli`; jen vedoucí/manažer/admin: `ukoly.seznam`, `ukoly.zadej`, `ukoly.zrus`.
+  `id_akce`), `ukoly.moje`, `diagnostika.odesli`; vedoucí+: `prehled.data` (cache 5 min, `obnovit: true` ji obejde),
+  `zaznamy.seznam`, `kontroly.log`, `ukoly.seznam`; manažer+: `ukoly.zadej`, `ukoly.zrus`; admin: `import.info`,
+  `import.polozky`, `import.lokace`, `import.stav` (bez `potvrdit` jen náhled), `sprava.uzivatele`, `sprava.uzivatel.uloz`,
+  `sprava.uzivatel.pin`, `sprava.nastaveni`, `sprava.nastaveni.uloz`, `sprava.polozky`, `sprava.polozka.uloz`.
+- Excel v prohlížeči: SheetJS 0.20.3 z `cdn.sheetjs.com` (pevná verze + kontrolní součet), načte se až v řízení.
 - Plánovač: funkce `planovac()` (spouštěč i menu), instalace spouštěče `instalujPlanovac()`.
 - `lokace.dokonci` je idempotentní podle `id_davky`: zpracované dávky si server pamatuje 30 dní ve Script Properties
   (`davka_<id>`), opakované odeslání vrátí původní výsledek.

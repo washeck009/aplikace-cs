@@ -56,8 +56,14 @@ export const jeEan = (kod) => /^\d+$/.test(kod) && [8, 12, 13, 14].includes(kod.
 
 export const jeKodLokace = (kod) => !jeEan(kod) && /^[A-Z0-9][A-Z0-9./-]{0,29}$/.test(kod);
 
-/** Položka číselníku podle EAN, nebo null. */
-export const polozkaPodleEan = (zaklad, ean) => zaklad?.polozky.find((p) => p.ean === ean) || null;
+/** EAN pro porovnání bez úvodních nul: Excel z EAN uloženého jako číslo nulu zahodí (13 → 12 číslic). */
+export const klicEan = (ean) => String(ean ?? '').trim().replace(/^0+(?=\d)/, '');
+
+/** Položka číselníku podle EAN (i s / bez úvodní nuly), nebo null. */
+export function polozkaPodleEan(zaklad, ean) {
+  if (!zaklad?.polozky) return null;
+  return zaklad.polozky.find((p) => p.ean === ean) || zaklad.polozky.find((p) => klicEan(p.ean) === klicEan(ean)) || null;
+}
 
 /** Název zboží záznamu – z číselníku podle EAN, jinak podle čísla položky. */
 export function nazevZbozi(zaznam, zaklad) {

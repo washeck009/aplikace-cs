@@ -1,10 +1,11 @@
-// PC – Úkoly: nový úkol (komu, lokace – jednotlivé, čárkou, rozsah od–do; položka, termín, poznámka),
-// přehled úkolů s průběhem, zrušení, pravidla plánovače. Jen vedoucí, manažer, admin (ověřuje i server).
+// Řízení – Úkoly: nový úkol (komu, lokace – jednotlivé, čárkou, rozsah od–do; položka, termín, poznámka),
+// přehled úkolů s průběhem, zrušení, pravidla plánovače. Vidí vedoucí, manažer, admin; zadávat a rušit smí jen
+// manažer a admin (vedoucí jen čte – ověřuje i server).
 import { volej } from '../api.js';
-import { pcRam, ROLE_PC } from '../pc.js';
+import { napojPrepinacPodniku, pcRam, prepinacPodniku, ROLE_PC, ROLE_UKOLY } from '../pc.js';
 import { PODNIKY } from '../podniky.js';
 import { dialog, esc, toast } from '../ui.js';
-import { ulozPodnik, zvolenyPodnik } from '../uloziste.js';
+import { zvolenyPodnik } from '../uloziste.js';
 
 const HASH = '#/pc/ukoly';
 const MAX_LOKACI_V_RADKU = 12;
@@ -20,16 +21,12 @@ export async function zobrazPcUkoly(koren, relace) {
   }
   const podnik = zvolenyPodnik();
   const nazev = PODNIKY.find((p) => p.kod === podnik)?.nazev || podnik;
-  pcRam(koren, relace, 'ukoly', `<div class="tabs">${PODNIKY.map((p) =>
-      `<button class="chip${p.kod === podnik ? ' on' : ''}" data-podnik="${p.kod}">${esc(p.nazev)}</button>`).join('')}</div>
+  pcRam(koren, relace, 'ukoly', `${prepinacPodniku(podnik)}
     <h1>Úkoly – ${esc(nazev)}</h1>
-    <div class="sub">Ruční úkoly zadávají vedoucí, manažer a správce. Plánovač přidává úkoly každé ráno sám.
+    <div class="sub">Ruční úkoly zadává manažer a správce. Plánovač přidává úkoly každé ráno sám.
       Lokace se odškrtne, když ji po zadání kdokoliv zkontroluje; s poslední lokací je úkol splněný.</div>
     <div id="pcObsah"><p class="hint">Načítám…</p></div>`, podnik);
-  koren.querySelectorAll('[data-podnik]').forEach((b) => b.addEventListener('click', () => {
-    ulozPodnik(b.dataset.podnik);
-    zobrazPcUkoly(koren, relace);
-  }));
+  napojPrepinacPodniku(koren, () => zobrazPcUkoly(koren, relace));
 
   let data;
   try {
@@ -57,8 +54,18 @@ function datum(iso) {
 function vykresliObsah(koren, relace, podnik, data) {
   const p = data.planovac || {};
   const ukoly = data.ukoly.filter((u) => filtr === 'vse' || u.stav === 'otevřený');
+  // Vedoucí úkoly jen vidí (server rozhoduje podle role; ROLE_UKOLY je záloha pro starší server).
+  const muzeZadavat = data.muze_zadavat ?? ROLE_UKOLY.includes(relace.role);
+  const otevrene = data.ukoly.filter((u) => u.stav === 'otevřený');
+  const lokaci = otevrene.reduce((s, u) => s + u.lokace.length, 0);
+  const hotovo = otevrene.reduce((s, u) => s + u.lokace.filter((k) => u.hotove.includes(k)).length, 0);
   koren.querySelector('#pcObsah').innerHTML = `<div class="grid2">
-    <div class="panel"><h2>Nový úkol</h2>
+    ${muzeZadavat ? '' : `<div class="panel"><h2>Plnění úkolů</h2>
+      <div class="kpis kpis-male"><div class="kpi"><div class="v">${otevrene.length}</div><div class="l">otevřených úkolů</div></div>
+        <div class="kpi"><div class="v">${hotovo} / ${lokaci}</div><div class="l">hotových lokací</div>
+          <div class="prog"><i style="width:${lokaci ? (100 * hotovo) / lokaci : 0}%"></i></div></div></div>
+      <div class="hint">Úkoly zadává a ruší manažer nebo správce.</div></div>`}
+    <div class="panel"${muzeZadavat ? '' : ' hidden'}><h2>Nový úkol</h2>
       <form id="novyUkol" autocomplete="off">
         <div class="field"><label for="uKomu">Pro koho</label><select id="uKomu" name="komu">
           <option value="kdokoliv">kdokoliv</option>
@@ -79,6 +86,8 @@ function vykresliObsah(koren, relace, podnik, data) {
         <tr><td>Lokace nekontrolovaná déle než</td><td>${esc(p.dni_bez_kontroly ?? '?')} dní</td></tr>
         <tr><td>Červené pásmo ověřit alespoň</td><td>1× za ${esc(p.cervene_overit_dni ?? '?')} dní</td></tr>
         <tr><td>Zboží na skladě bez kontroly (import ERP)</td><td>ano</td></tr>
+        <tr><td>Naskladněno po poslední kontrole (import ERP)</td><td>${p.naskladneno_zapnuto === false ? 'vypnuto'
+          : `naskladnění za posledních ${esc(p.naskladneno_dni ?? 14)} dní`}</td></tr>
         <tr><td>Max. lokací v jednom úkolu</td><td>${esc(p.max_lokaci_ukol ?? '?')}</td></tr>
         <tr><td>Denní spouštění (5:30)</td><td>${p.spoustec === true ? '✔ zapnuto' : p.spoustec === false ? '<b class="chyba-text">vypnuto</b>' : 'nezjištěno'}</td></tr>
       </table>
@@ -92,7 +101,7 @@ function vykresliObsah(koren, relace, podnik, data) {
         `<button class="chip${filtr === k ? ' on' : ''}" data-filtr="${k}">${t}</button>`).join('')}</div></div>
     <div class="tblw"><table>
       <tr><th>Úkol</th><th>Typ</th><th>Zadal</th><th>Pro</th><th>Termín</th><th>Hotovo</th><th>Stav</th><th></th></tr>
-      ${ukoly.length ? ukoly.map(radekUkolu).join('') : '<tr><td colspan="8" class="hint">Žádné úkoly.</td></tr>'}
+      ${ukoly.length ? ukoly.map((u) => radekUkolu(u, muzeZadavat)).join('') : '<tr><td colspan="8" class="hint">Žádné úkoly.</td></tr>'}
     </table></div>
   </div>`;
 
@@ -136,7 +145,7 @@ function vykresliObsah(koren, relace, podnik, data) {
   }));
 }
 
-function radekUkolu(u) {
+function radekUkolu(u, muzeRusit) {
   const hotovo = u.lokace.filter((k) => u.hotove.includes(k)).length;
   const lokace = u.lokace.slice(0, MAX_LOKACI_V_RADKU).map((k) => (u.hotove.includes(k) ? `<s>${esc(k)}</s>` : esc(k))).join(', ')
     + (u.lokace.length > MAX_LOKACI_V_RADKU ? ` … +${u.lokace.length - MAX_LOKACI_V_RADKU}` : '');
@@ -150,6 +159,6 @@ function radekUkolu(u) {
     <td>${datum(u.termin)}</td>
     <td>${hotovo} / ${u.lokace.length}<div class="prog"><i style="width:${(100 * hotovo) / u.lokace.length}%"></i></div></td>
     <td><span class="pill ${stav}">${esc(u.stav)}</span>${kdy}</td>
-    <td>${u.stav === 'otevřený' ? `<button class="chip" data-zrusit="${esc(u.id)}">Zrušit</button>` : ''}</td>
+    <td>${u.stav === 'otevřený' && muzeRusit ? `<button class="chip" data-zrusit="${esc(u.id)}">Zrušit</button>` : ''}</td>
   </tr>`;
 }

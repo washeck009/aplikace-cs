@@ -259,6 +259,78 @@ body.pc-rezim .app { max-width: none; background: var(--bg); }
   .main { padding: 14px; }
 }
 
+/* Řízení – přehled (KPI, mapa pokrytí, pásma, trend, FEFO) */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.kpis-male { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); margin-bottom: 8px; }
+.kpi { background: #fff; border: 1px solid var(--line); border-left: 5px solid var(--pri2); border-radius: 12px; padding: 12px 14px; }
+.kpi .v { font-size: 24px; font-weight: 700; }
+.kpi .l { font-size: 12px; color: var(--mut); }
+.kpi.kpi-r { border-left-color: var(--red); }
+.kpi.kpi-x { border-left-color: #5a0000; }
+.kpi.kpi-y { border-left-color: var(--yel); }
+.heat { display: flex; flex-direction: column; gap: 3px; max-height: 520px; overflow: auto; }
+.heat-radek { display: flex; align-items: flex-start; gap: 8px; }
+.heat-popis { width: 70px; flex-shrink: 0; font-size: 12px; color: var(--mut); text-align: right; padding-top: 1px; }
+.heat-bunky { display: flex; flex-wrap: wrap; gap: 2px; }
+.heat-bunky i { width: 12px; height: 12px; border-radius: 2px; }
+.h-1 { background: var(--grn); }
+.h-2 { background: #8cc89b; }
+.h-3 { background: #e9b949; }
+.h-4 { background: var(--red); }
+.h-n { background: #c9cfd6; }
+.lgd { display: flex; gap: 14px; font-size: 12px; color: var(--mut); margin-top: 10px; flex-wrap: wrap; }
+.lgd i { display: inline-block; width: 12px; height: 12px; border-radius: 2px; margin-right: 4px; vertical-align: -2px; }
+.panel td.num, .panel th.num { text-align: right; }
+.panel tr.soucet td { border-top: 2px solid var(--line); }
+.panel td.pod-cilem b { color: var(--red); }
+.pasmo-radek { display: grid; grid-template-columns: 190px 1fr 60px; align-items: center; gap: 8px; margin-bottom: 6px; font-size: 13px; }
+.pasmo-radek b { text-align: right; }
+.pasmo-pruh { height: 12px; background: var(--gryb); border-radius: 6px; overflow: hidden; }
+.pasmo-pruh i { display: block; height: 100%; }
+.b-x { background: #5a0000; }
+.b-r { background: var(--red); }
+.b-y { background: var(--yel); }
+.b-g { background: var(--grn); }
+.b-k { background: var(--gry); }
+.trend { display: flex; gap: 6px; align-items: flex-end; height: 130px; margin: 6px 0; }
+.trend-sloupec { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.trend-hodnota { font-size: 11px; color: var(--mut); }
+.trend-bar { flex: 1; width: 70%; display: flex; flex-direction: column-reverse; justify-content: flex-start; background: var(--gryb); border-radius: 4px 4px 0 0; overflow: hidden; }
+.trend-bar i { display: block; width: 100%; }
+.trend-popis { font-size: 11px; color: var(--mut); margin-top: 2px; white-space: nowrap; }
+.fefo-mrizka { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.fefo { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 13px; }
+.fefo ol { margin: 6px 0 0; padding-left: 20px; }
+.fefo li { margin-bottom: 3px; }
+
+/* Řízení – záznamy, správa, importy */
+.filtry-pc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.filtry-pc input, .filtry-pc select { padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 14px; background: #fff; }
+.filtry-pc input[type=search] { flex: 1; min-width: 220px; }
+.filtry-pc .btn { min-height: 40px; padding: 8px 14px; }
+.filtry-pc label { font-size: 13px; color: var(--mut); }
+.panel th.razeni { cursor: pointer; user-select: none; }
+.panel th.razeni:hover { color: var(--ink); }
+table.zaznamy td { font-size: 13px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.import-karta { display: flex; flex-direction: column; }
+.import-karta input[type=file] { margin-top: auto; padding: 10px 0; }
+.import-karta .field input { font-size: 14px; min-height: 40px; }
+.volba { display: block; font-size: 13px; margin-bottom: 10px; }
+.nahled-importu { border-color: var(--pri); }
+.nahled-importu.hotovo { border-color: var(--grn); background: var(--grnb); }
+.panel table.souhrn { max-width: 640px; }
+.panel table.souhrn tr.varovani td { background: var(--yelb); }
+.pin-jednou { font-size: 44px; font-weight: 700; letter-spacing: 12px; text-align: center; margin: 12px 0; font-variant-numeric: tabular-nums; }
+.panel table.nastaveni input, .panel table.nastaveni select, .panel td input:not([type=checkbox]) {
+  width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; min-width: 90px;
+}
+.panel td select { padding: 6px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; }
+.panel td.akce { white-space: nowrap; }
+.panel td.akce .chip { min-height: 34px; padding: 5px 10px; }
+@media (max-width: 1100px) { .grid3 { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .pasmo-radek { grid-template-columns: 1fr 1fr 50px; } }
+
 /* Diagnostika skenování */
 .diagnostika {
   position: fixed; top: 0; left: 0; right: 0; z-index: 90; max-height: 45vh; overflow: auto;

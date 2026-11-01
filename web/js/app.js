@@ -12,6 +12,10 @@ import { zobrazKontroluLokace } from './obrazovky/kontrola-lokace.js';
 import { zobrazMojeUkoly } from './obrazovky/moje-ukoly.js';
 import { zobrazBliziSe } from './obrazovky/blizi-se.js';
 import { zobrazPcUkoly } from './obrazovky/pc-ukoly.js';
+import { zobrazPcPrehled } from './obrazovky/pc-prehled.js';
+import { zobrazPcZaznamy } from './obrazovky/pc-zaznamy.js';
+import { zobrazPcSprava } from './obrazovky/pc-sprava.js';
+import { zobrazPcImporty } from './obrazovky/pc-importy.js';
 
 const OBRAZOVKY = {
   '#/': zobrazRozcestnik,
@@ -19,8 +23,12 @@ const OBRAZOVKY = {
   '#/expirace/kontrola': zobrazKontroluLokace,
   '#/expirace/ukoly': zobrazMojeUkoly,
   '#/expirace/blizi': zobrazBliziSe,
-  '#/pc': zobrazPcUkoly,
-  '#/pc/ukoly': zobrazPcUkoly
+  '#/pc': zobrazPcPrehled,
+  '#/pc/prehled': zobrazPcPrehled,
+  '#/pc/ukoly': zobrazPcUkoly,
+  '#/pc/zaznamy': zobrazPcZaznamy,
+  '#/pc/sprava': zobrazPcSprava,
+  '#/pc/importy': zobrazPcImporty
 };
 
 function vykresli() {

@@ -45,6 +45,13 @@ function mapaLokaci_(podnik, jenAktivni) {
   return mapa;
 }
 
+/** Aktivní lokace H/P podniku – jen ty se plánují a počítají do pokrytí (BAL, RAMP, PRIJEM… ne). */
+function mapaHlidanychLokaci_(podnik) {
+  const mapa = mapaLokaci_(podnik, true);
+  Object.keys(mapa).forEach(function (k) { if (!jeKontrolovanaLokace_(k)) delete mapa[k]; });
+  return mapa;
+}
+
 /** Seznam kódů z buňky („A, B, C“) – normalizované, bez prázdných a duplicit. */
 function seznamKodu_(hodnota) {
   const videno = {};
@@ -167,8 +174,11 @@ function akceUkolyMoje_(data, uzivatel) {
   };
 }
 
-/** PC – přehled úkolů podniku (otevřené + uzavřené za 30 dní), uživatelé a pravidla plánovače. */
-function akceUkolySeznam_(data) {
+/**
+ * Řízení – přehled úkolů podniku (otevřené + uzavřené za 30 dní), uživatelé a pravidla plánovače.
+ * Vidí i vedoucí (jen ke čtení); muze_zadavat = smí zadávat a rušit (manažer, admin).
+ */
+function akceUkolySeznam_(data, uzivatel) {
   const podnik = overPodnik_(data.podnik);
   zajistiSloupce_('Ukoly');
   const mapa = mapaLokaci_(podnik, false);
@@ -187,10 +197,14 @@ function akceUkolySeznam_(data) {
   return {
     ukoly: ukoly,
     uzivatele: akceSeznamUzivatelu_(),
+    muze_zadavat: !!uzivatel && maRoli_(uzivatel, 'manazer'),
     planovac: {
       dni_bez_kontroly: n.planovac_dni_bez_kontroly,
       cervene_overit_dni: n.planovac_cervene_overit_dni,
       max_lokaci_ukol: n.planovac_max_lokaci_ukol,
+      naskladneno_zapnuto: n.planovac_naskladneno_zapnuto === null || n.planovac_naskladneno_zapnuto === undefined
+        || jeAno_(n.planovac_naskladneno_zapnuto),
+      naskladneno_dni: n.planovac_naskladneno_dni,
       spoustec: planovacNainstalovan_()
     }
   };

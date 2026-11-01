@@ -23,18 +23,40 @@ function overKodLokace_(kod) {
 }
 
 /**
- * Rozloží kód lokace podle pomlček (H2-P-37-1 → hala H2, řada P, sloupec 37, nosník 1).
- * Tolerantně – co nejde rozložit, zůstane prázdné. Zóna podle prvního písmene (H = hala, P = policová galerie).
+ * Rozloží kód lokace podle pomlček (H2-P-37-1 → hala H2, řada P, sloupec 37, nosník 1; H1-AB-12 → hala H1,
+ * řada AB, sloupec 12). Tolerantně – co nejde rozložit, zůstane prázdné. Zóna podle prvního písmene
+ * (H = hala, P = policová galerie).
  */
 function rozlozKodLokace_(kod) {
   const casti = kod.split('-');
   const r = { hala: '', rada: '', sloupec: '', nosnik: '', zona: /^[HP]/.test(kod) ? kod.charAt(0) : '' };
   if (casti.length === 4) {
     r.hala = casti[0]; r.rada = casti[1]; r.sloupec = casti[2]; r.nosnik = casti[3];
+  } else if (casti.length === 3 && /^[HP]\d+$/.test(casti[0])) {
+    r.hala = casti[0]; r.rada = casti[1]; r.sloupec = casti[2];
   } else if (casti.length === 3) {
     r.rada = casti[0]; r.sloupec = casti[1]; r.nosnik = casti[2];
   }
   return r;
+}
+
+/** Lokace v hale / policové galerii (H1, P0…) – jen ty se kontrolují, plánují a počítají do pokrytí. */
+function jeKontrolovanaLokace_(kod) {
+  return LOKACE_KONTROLOVANA.test(normalizujKod_(kod));
+}
+
+/**
+ * Klíč EAN pro porovnání: bez úvodních nul. Excel z EAN uloženého jako číslo nulu zahodí (13 → 12 číslic),
+ * čtečka ji ale naskenuje – oba tvary pak najdou stejnou položku.
+ */
+function klicEan_(ean) {
+  return text_(ean).replace(/^0+(?=\d)/, '');
+}
+
+/** Klíč čísla položky pro porovnání: číselné bez úvodních nul (Excel je z čísla zahodí), jinak velkými písmeny. */
+function klicCisla_(cislo) {
+  const t = text_(cislo).toUpperCase();
+  return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, '') : t;
 }
 
 function najdiLokaci_(radky, podnik, kod) {
@@ -223,7 +245,7 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
   const nazevPodleCisla = {};
   nactiList_('Polozky').radky.forEach(function (r) {
     if (text_(r.podnik) !== podnik) return;
-    polozkaPodleEan[text_(r.ean)] = r;
+    polozkaPodleEan[klicEan_(r.ean)] = r;
     if (text_(r.nazev)) nazevPodleCisla[text_(r.cislo_polozky)] = text_(r.nazev);
   });
 
@@ -293,7 +315,9 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
   };
 
   const pridejZaznam = function (radek) {
-    const ean = text_(radek.ean);
+    // EAN jako v číselníku (sken s úvodní nulou najde položku uloženou bez ní a naopak).
+    const znamy = polozkaPodleEan[klicEan_(radek.ean)];
+    const ean = znamy ? text_(znamy.ean) : text_(radek.ean);
     const exp = parsujExpiraci_(radek.expirace);
     if (!jeEan_(ean) || !exp) {
       souhrn.preskoceno++;
@@ -320,7 +344,7 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
       return;
     }
 
-    let polozka = polozkaPodleEan[ean];
+    let polozka = polozkaPodleEan[klicEan_(ean)];
     const cislo = polozka ? text_(polozka.cislo_polozky) : text_(radek.cislo_polozky);
     if (!cislo) {
       souhrn.preskoceno++;
@@ -331,7 +355,7 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
       polozka = { podnik: podnik, ean: ean, cislo_polozky: cislo, nazev: nazevPodleCisla[cislo] || '',
         aktivni: true, zdroj: 'rucni', k_doplneni: true };
       novePolozky.push(polozka);
-      polozkaPodleEan[ean] = polozka;
+      polozkaPodleEan[klicEan_(ean)] = polozka;
     }
 
     const id = /^[a-f0-9]{12}$/.test(text_(radek.id)) && !vsechnaId[text_(radek.id)] ? text_(radek.id) : noveId_();
@@ -451,7 +475,7 @@ function akceZaznamStav_(data, uzivatel) {
     zapisRadky_(zaznamy, [r]);
     pridejRadky_('Kontroly', [{
       id: noveId_(), cas: cas, uzivatel: uzivatel.jmeno, podnik: podnik, lokace: text_(r.lokace), id_zaznamu: text_(r.id),
-      akce: stav === STAV.VYDANO ? 'vydáno' : 'zlikvidováno', pocet_ks: r.pocet_ks, poznamka: 'Blíží se expirace',
+      akce: stav === STAV.VYDANO ? 'vydáno' : 'zlikvidováno', pocet_ks: r.pocet_ks, poznamka: POZNAMKA_BLIZI_SE,
       id_ukolu: '', zapocteno: false
     }]);
     const vysledek = { id: text_(r.id), stav: stav, lokace: text_(r.lokace) };

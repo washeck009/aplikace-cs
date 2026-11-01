@@ -410,7 +410,9 @@ async function dokonci(typ) {
 
 /* ---------- 3) Nové zboží ---------- */
 
-function otevriNovy(ean) {
+function otevriNovy(naskenovany) {
+  // EAN jako v číselníku – sken „0…“ najde položku uloženou bez úvodní nuly (Excel ji zahodí) a naopak.
+  const ean = polozkaPodleEan(s.zaklad, naskenovany)?.ean || naskenovany;
   const existujici = s.lokace.zaznamy.filter((z) => z.ean === ean && poUprave(z).stav === NA_LOKACI);
   s.formular = {
     ean, polozka: polozkaPodleEan(s.zaklad, ean), cislo_polozky: '', expirace: '', pocet_ks: '', poznamka: '', foto: null,

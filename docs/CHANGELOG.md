@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.4.0 – 2026-11-01 – Etapa 4: Řízení – přehled, záznamy, správa, importy
+
+### Přidáno
+- **Přehled** (`prehled.data`, cache 5 min, velký sklad komprimovaně): KPI (pokrytí 30 / 90 dní, kontroly týden vs. cíl,
+  červené, expirované, zboží bez kontroly, naskladněno po kontrole, plnění úkolů, k doplnění), mapa pokrytí
+  (hala · řada, ≤30 / 31–60 / 61–90 / >90 / nikdy), kontroly po lidech za 8 týdnů, pásma + trend, FEFO.
+- **Záznamy** (`zaznamy.seznam`): hledání, filtr pásma a stavu, řazení, export .xlsx s aktuálním filtrem (kódy jako text),
+  **log kontrol** za období (`kontroly.log`, max. 366 dní).
+- **Správa** (admin): uživatelé – přidat (PIN se vygeneruje a ukáže jednou), role, aktivní, nový PIN / odemknutí
+  (admin si nemůže sebrat roli, musí zůstat aspoň jeden aktivní admin); nastavení po podnicích s kontrolou hodnot;
+  položky k doplnění – doplnit název nebo spárovat podle čísla položky (opraví i záznamy).
+- **Importy** (admin, xlsx / csv UTF-8 i windows-1250, sloupce podle názvů v hlavičce, podnik volí admin, vždy náhled →
+  potvrzení): číselník, lokace, stav na lokacích. Stav se v prohlížeči sečte za lokaci a položku (DATUM = nejnovější
+  naskladnění) a na server jde jen lokace H/P a hlídané zboží (30 000 řádků ≈ 300 kB). Uzavření zmizelého zboží
+  (`import uzavřel`), záznamy změněné po čase exportu se neuzavřou; varování při podezřele malém importu.
+- **Plánovač d) Naskladněno po poslední kontrole** (`planovac_naskladneno_zapnuto`, `planovac_naskladneno_dni` = 14);
+  pořadí pravidel b → d → a → c.
+- SheetJS 0.20.3 z `cdn.sheetjs.com` s kontrolním součtem (načte se jen v řízení).
+- Ukázkové soubory se smyšlenými daty: `docs/testovaci-data/`.
+
+### Změněno
+- **Oprávnění:** vedoucí v řízení jen čte (přehled, záznamy, úkoly s plněním); zadávat / rušit úkoly smí manažer a admin
+  (`ROLE_UROVEN`: skladník 1, vedoucí 2, manažer 3, admin 4); Správa a Importy jen admin. Ověřuje server.
+- Kontrolují se jen lokace **H nebo P s číslicí** (H1, P0…; ne PAL, PRIJEM): jen ty jsou v plánovači a v pokrytí.
+  Import lokací: regálové (`H2-P-37-1`, `H1-AB-12`) aktivní, H/P jiného tvaru neaktivní, ostatní se přeskočí / vypnou.
+- Rozklad třídílného kódu `H1-AB-12` → hala H1, řada AB, sloupec 12 (dřív řada H1).
+- EAN a čísla položek se porovnávají **bez úvodních nul** (Excel je u čísel zahazuje): sken `0…` najde EAN uložený
+  s 12 číslicemi a záznam převezme EAN z číselníku.
+- „Poslední kontrola lokace“ (plánovač, pokrytí) nepočítá `import uzavřel` ani Vydáno / Zlikvidováno z Blíží se expirace.
+- Dlaždice *Expirace – řízení* vede na Přehled; postranní menu Přehled / Úkoly / Záznamy / Správa / Importy podle role.
+
+### Datový model
+- `Import_stav_lokaci`: nové sloupce `naskladneno` (DATUM z ERP) a `mj`; ukládá se jen hlídané zboží a každý import
+  nahradí předchozí import podniku. Souhrn posledního importu ve Script Properties (`import_stav_<podnik>`).
+- `Nastaveni`: `planovac_naskladneno_zapnuto`, `planovac_naskladneno_dni` (doplní setup).
+
 ## 0.3.1 – 2026-10-30 – Opravy po testu etap 2–3
 
 ### Opraveno

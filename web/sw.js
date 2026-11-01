@@ -1,6 +1,6 @@
 // Service worker: statické soubory z cache (aplikace se otevře i bez signálu), na pozadí se obnovují.
 // Při každé změně ve web/ zvyš VERZE (a stejnou v js/verze.js) – stará cache se pak smaže.
-const VERZE = '0.3.1';
+const VERZE = '0.4.0';
 const CACHE = 'aplikace-cs-' + VERZE;
 
 const SOUBORY = [
@@ -29,7 +29,12 @@ const SOUBORY = [
   './js/obrazovky/moje-ukoly.js',
   './js/obrazovky/blizi-se.js',
   './js/obrazovky/pc-ukoly.js',
+  './js/obrazovky/pc-prehled.js',
+  './js/obrazovky/pc-zaznamy.js',
+  './js/obrazovky/pc-sprava.js',
+  './js/obrazovky/pc-importy.js',
   './js/pc.js',
+  './js/xlsx.js',
   './ikony/ikona-192.png',
   './ikony/ikona-512.png',
   './ikony/ikona-maskable-512.png'
