@@ -2,6 +2,7 @@
 import { volej } from '../api.js';
 import { nactiZaklad, ulozZaklad } from '../db.js';
 import { pasmo } from '../expirace.js';
+import { ma } from '../opravneni.js';
 import { cekajiciDavky, zaznamySFrontou } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
 import { pripravSkener } from '../skener.js';
@@ -11,10 +12,12 @@ import { esc, hlavicka, napojHlavicku, prejdi, toast } from '../ui.js';
 // Data podniku se znovu stahují po přihlášení a pak nejdéle po 30 minutách.
 const OBNOVA_MS = 30 * 60 * 1000;
 
+// Dlaždice podle oprávnění (stačí jedno z nich) – Správa → Oprávnění.
 const DLAZDICE = [
-  { ikona: '📷', nazev: 'Kontrola lokace', popis: 'Naskenuj lokaci a ověř zboží', cil: '#/expirace/kontrola' },
-  { ikona: '📋', nazev: 'Moje úkoly', popis: 'Od vedoucích a z plánovače', cil: '#/expirace/ukoly', odznak: 'ukoly' },
-  { ikona: '⏳', nazev: 'Blíží se expirace', popis: 'Seřazeno podle data, pro obchůzku', cil: '#/expirace/blizi', odznak: 'blizi' }
+  { ikona: '📷', nazev: 'Kontrola lokace', popis: 'Naskenuj lokaci a ověř zboží', cil: '#/expirace/kontrola', opravneni: ['kontrola'] },
+  { ikona: '📋', nazev: 'Moje úkoly', popis: 'Od vedoucích a z plánovače', cil: '#/expirace/ukoly', odznak: 'ukoly', opravneni: ['moje_ukoly'] },
+  { ikona: '⏳', nazev: 'Blíží se expirace', popis: 'Seřazeno podle data, pro obchůzku', cil: '#/expirace/blizi', odznak: 'blizi',
+    opravneni: ['vydano', 'kontrola'] }
 ];
 
 // Pořadové číslo vykreslení – starší rozběhnuté stahování nepřepíše novější obrazovku.
@@ -27,7 +30,7 @@ export function zobrazExpiraceDomu(koren, relace) {
   koren.innerHTML = hlavicka('Expirace', { zpet: '#/', podnik }) + `<main class="ph-body">
     <div class="seg">${PODNIKY.map((p) =>
       `<button data-podnik="${p.kod}" class="${p.kod === podnik ? 'on' : ''}">${esc(p.nazev)}</button>`).join('')}</div>
-    ${DLAZDICE.map((d) => `<button class="tile${d.cil ? '' : ' pripravujeme'}"${d.cil ? ` data-cil="${d.cil}"` : ''}>
+    ${DLAZDICE.filter((d) => ma(...d.opravneni)).map((d) => `<button class="tile${d.cil ? '' : ' pripravujeme'}"${d.cil ? ` data-cil="${d.cil}"` : ''}>
       <span class="ic">${d.ikona}</span>
       <div><div class="tt">${d.nazev}</div><div class="ss">${d.popis}</div></div>
       ${d.cil ? '' : '<span class="tag">připravujeme</span>'}

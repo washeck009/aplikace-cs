@@ -126,6 +126,8 @@ function vytvorToken_(uzivatel) {
     token: token,
     jmeno: text_(uzivatel.jmeno),
     role: roleUzivatele_(uzivatel),
+    // Klient podle seznamu skrývá dlaždice a tlačítka; rozhoduje vždy server.
+    opravneni: opravneniRole_(roleUzivatele_(uzivatel)),
     platnost: platnost.toISOString()
   };
 }
@@ -177,6 +179,7 @@ function overToken_(token) {
     id: t.id,
     jmeno: text_(u.jmeno),
     role: roleUzivatele_(u),
+    opravneni: opravneniRole_(roleUzivatele_(u)),
     platnost: new Date(t.platnost).toISOString(),
     _klic: klic
   };
@@ -266,5 +269,5 @@ function akceLogout_(data, uzivatel) {
 }
 
 function akceJa_(data, uzivatel) {
-  return { jmeno: uzivatel.jmeno, role: uzivatel.role, platnost: uzivatel.platnost };
+  return { jmeno: uzivatel.jmeno, role: uzivatel.role, opravneni: uzivatel.opravneni, platnost: uzivatel.platnost };
 }

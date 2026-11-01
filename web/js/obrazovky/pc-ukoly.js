@@ -1,8 +1,9 @@
 // Řízení – Úkoly: nový úkol (komu, lokace – jednotlivé, čárkou, rozsah od–do; položka, termín, poznámka),
-// přehled úkolů s průběhem, zrušení, pravidla plánovače. Vidí vedoucí, manažer, admin; zadávat a rušit smí jen
-// manažer a admin (vedoucí jen čte – ověřuje i server).
+// přehled úkolů s průběhem, zrušení, pravidla plánovače. Vidí, kdo má oprávnění přehledy nebo zadávání úkolů;
+// zadávat a rušit smí jen s oprávněním ukoly_zadavani (ověřuje i server).
 import { volej } from '../api.js';
-import { napojPrepinacPodniku, pcRam, prepinacPodniku, ROLE_PC, ROLE_UKOLY } from '../pc.js';
+import { ma } from '../opravneni.js';
+import { napojPrepinacPodniku, overOpravneni, pcRam, prepinacPodniku } from '../pc.js';
 import { PODNIKY } from '../podniky.js';
 import { dialog, esc, toast } from '../ui.js';
 import { zvolenyPodnik } from '../uloziste.js';
@@ -14,16 +15,13 @@ let filtr = 'otevrene';
 let vykresleni = 0;
 
 export async function zobrazPcUkoly(koren, relace) {
+  if (!overOpravneni(koren, relace, 'ukoly', 'Úkoly')) return;
   const cislo = ++vykresleni;
-  if (!ROLE_PC.includes(relace.role)) {
-    pcRam(koren, relace, 'ukoly', '<h1>Úkoly</h1><div class="chyba">Tuto část vidí jen vedoucí, manažer a správce.</div>');
-    return;
-  }
   const podnik = zvolenyPodnik();
   const nazev = PODNIKY.find((p) => p.kod === podnik)?.nazev || podnik;
   pcRam(koren, relace, 'ukoly', `${prepinacPodniku(podnik)}
     <h1>Úkoly – ${esc(nazev)}</h1>
-    <div class="sub">Ruční úkoly zadává manažer a správce. Plánovač přidává úkoly každé ráno sám.
+    <div class="sub">Ruční úkoly zadává, kdo má oprávnění „Zadávání a rušení úkolů“. Plánovač přidává úkoly každé ráno sám.
       Lokace se odškrtne, když ji po zadání kdokoliv zkontroluje; s poslední lokací je úkol splněný.</div>
     <div id="pcObsah"><p class="hint">Načítám…</p></div>`, podnik);
   napojPrepinacPodniku(koren, () => zobrazPcUkoly(koren, relace));
@@ -54,8 +52,8 @@ function datum(iso) {
 function vykresliObsah(koren, relace, podnik, data) {
   const p = data.planovac || {};
   const ukoly = data.ukoly.filter((u) => filtr === 'vse' || u.stav === 'otevřený');
-  // Vedoucí úkoly jen vidí (server rozhoduje podle role; ROLE_UKOLY je záloha pro starší server).
-  const muzeZadavat = data.muze_zadavat ?? ROLE_UKOLY.includes(relace.role);
+  // Bez oprávnění zadávání úkoly jen vidí (rozhoduje server; ma() je záloha pro starší server).
+  const muzeZadavat = data.muze_zadavat ?? ma('ukoly_zadavani');
   const otevrene = data.ukoly.filter((u) => u.stav === 'otevřený');
   const lokaci = otevrene.reduce((s, u) => s + u.lokace.length, 0);
   const hotovo = otevrene.reduce((s, u) => s + u.lokace.filter((k) => u.hotove.includes(k)).length, 0);
@@ -64,7 +62,7 @@ function vykresliObsah(koren, relace, podnik, data) {
       <div class="kpis kpis-male"><div class="kpi"><div class="v">${otevrene.length}</div><div class="l">otevřených úkolů</div></div>
         <div class="kpi"><div class="v">${hotovo} / ${lokaci}</div><div class="l">hotových lokací</div>
           <div class="prog"><i style="width:${lokaci ? (100 * hotovo) / lokaci : 0}%"></i></div></div></div>
-      <div class="hint">Úkoly zadává a ruší manažer nebo správce.</div></div>`}
+      <div class="hint">Zadávat a rušit úkoly nemáš oprávnění (přiděluje správce).</div></div>`}
     <div class="panel"${muzeZadavat ? '' : ' hidden'}><h2>Nový úkol</h2>
       <form id="novyUkol" autocomplete="off">
         <div class="field"><label for="uKomu">Pro koho</label><select id="uKomu" name="komu">

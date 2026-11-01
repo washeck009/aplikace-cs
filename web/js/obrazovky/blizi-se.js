@@ -1,6 +1,7 @@
 // Expirace – Blíží se expirace (čtečka): záznamy „Na lokaci“ podle zbývajících dní, filtry podle pásma,
 // akce Na lokaci (otevře kontrolu) / Vydáno / Zlikvidováno (přes offline frontu, zapíše se do logu s kým a kdy).
 import { volej } from '../api.js';
+import { ma } from '../opravneni.js';
 import { nactiZaklad, ulozZaklad } from '../db.js';
 import { kratkeDatum, nazevZbozi, pasmo, stitekPasma, zbyvaDni } from '../expirace.js';
 import { pridejDoFronty, zaznamySFrontou } from '../fronta.js';
@@ -111,9 +112,8 @@ function karta(z, zaklad, n) {
     <div class="mt"><b>${esc(z.lokace)}</b> · exp. <b>${esc(z.expirace)}</b> · ${stitekPasma(z.expirace, n)}${ks}</div>
     <div class="mt">Ověřeno ${esc(kratkeDatum(z.overeno))}${pred !== null ? ` (před ${pred} dny)` : ''}${z.overil ? ` · ${esc(z.overil)}` : ''}</div>
     <div class="acts">
-      <button data-na-lokaci="${esc(z.lokace)}">➜ Na lokaci</button>
-      <button data-stav="Vydáno">Vydáno</button>
-      <button data-stav="Zlikvidováno">Zlikvidováno</button>
+      ${ma('kontrola') ? `<button data-na-lokaci="${esc(z.lokace)}">➜ Na lokaci</button>` : ''}
+      ${ma('vydano') ? '<button data-stav="Vydáno">Vydáno</button><button data-stav="Zlikvidováno">Zlikvidováno</button>' : ''}
     </div>
   </div>`;
 }

@@ -176,7 +176,7 @@ function akceUkolyMoje_(data, uzivatel) {
 
 /**
  * Řízení – přehled úkolů podniku (otevřené + uzavřené za 30 dní), uživatelé a pravidla plánovače.
- * Vidí i vedoucí (jen ke čtení); muze_zadavat = smí zadávat a rušit (manažer, admin).
+ * Vidí, kdo má oprávnění přehledy nebo zadávání úkolů; muze_zadavat = oprávnění ukoly_zadavani.
  */
 function akceUkolySeznam_(data, uzivatel) {
   const podnik = overPodnik_(data.podnik);
@@ -197,7 +197,7 @@ function akceUkolySeznam_(data, uzivatel) {
   return {
     ukoly: ukoly,
     uzivatele: akceSeznamUzivatelu_(),
-    muze_zadavat: !!uzivatel && maRoli_(uzivatel, 'manazer'),
+    muze_zadavat: maOpravneni_(uzivatel, 'ukoly_zadavani'),
     planovac: {
       dni_bez_kontroly: n.planovac_dni_bez_kontroly,
       cervene_overit_dni: n.planovac_cervene_overit_dni,

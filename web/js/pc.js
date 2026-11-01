@@ -1,22 +1,34 @@
-// Řízení (PC část: vedoucí, manažer, admin) – rám s postranním menu podle makety a společné prvky obrazovek.
-// Oprávnění hlídá i server: vedoucí jen čte (přehled, záznamy, úkoly), manažer navíc zadává úkoly,
-// admin navíc spravuje uživatele, nastavení a importy.
+// Řízení (PC část) – rám s postranním menu podle makety a společné prvky obrazovek.
+// Položky menu a obrazovky podle oprávnění (Správa → Oprávnění); každou akci kontroluje i server.
+import { ma } from './opravneni.js';
 import { NAZVY_ROLI, PODNIKY, podnikPodleKodu } from './podniky.js';
 import { esc, nastavBarvuPodniku, odhlasit, prejdi } from './ui.js';
-import { ulozPodnik } from './uloziste.js';
+import { relace as aktualniRelace, ulozPodnik } from './uloziste.js';
 
-export const ROLE_PC = ['vedouci', 'manazer', 'admin'];
-export const ROLE_UKOLY = ['manazer', 'admin']; // zadávání a rušení úkolů
+// Oprávnění obrazovek řízení (stačí jedno z nich). Nový modul přidá svou položku se svými klíči.
+export const OPRAVNENI_OBRAZOVEK = {
+  prehled: ['prehledy'],
+  ukoly: ['prehledy', 'ukoly_zadavani'],
+  zaznamy: ['zaznamy'],
+  sprava: ['sprava_uzivatelu', 'nastaveni', 'importy'], // Oprávnění (záložka) jen admin
+  importy: ['importy']
+};
 
-// [klíč, popisek, adresa, jen pro role]
+// [klíč, popisek, adresa]
 const MENU = [
   ['prehled', '📊 Přehled', '#/pc/prehled'],
   ['ukoly', '📋 Úkoly', '#/pc/ukoly'],
   ['zaznamy', '🗂 Záznamy', '#/pc/zaznamy'],
-  ['sprava', '⚙ Správa', '#/pc/sprava', ['manazer', 'admin']], // manažer jen uživatele
-
-  ['importy', '⇪ Importy', '#/pc/importy', ['admin']]
+  ['sprava', '⚙ Správa', '#/pc/sprava'],
+  ['importy', '⇪ Importy', '#/pc/importy']
 ];
+
+const smiObrazovku = (klic) => ma(...OPRAVNENI_OBRAZOVEK[klic]);
+
+/** První obrazovka řízení, kterou uživatel smí vidět (dlaždice v rozcestníku, adresa #/pc). */
+export function vychoziObrazovkaRizeni() {
+  return (MENU.find(([klic]) => smiObrazovku(klic)) || MENU[0])[2];
+}
 
 /**
  * Vykreslí rám řízení s obsahem `obsah` (HTML); `aktivni` = klíč položky menu.
@@ -28,7 +40,7 @@ export function pcRam(koren, relace, aktivni, obsah, podnik) {
   koren.innerHTML = `<div class="pc">
     <nav class="side">
       <div class="lg">Aplikace CS<br><span class="lg-sub">Expirace – řízení</span></div>
-      ${MENU.filter((m) => !m[3] || m[3].includes(relace.role)).map(([klic, popisek, cil]) =>
+      ${MENU.filter(([klic]) => smiObrazovku(klic)).map(([klic, popisek, cil]) =>
         `<button class="${klic === aktivni ? 'on' : ''}" data-cil="${cil}">${popisek}</button>`).join('')}
       <button data-rozcestnik>← Rozcestník</button>
       <div class="side-pata">Přihlášen: ${esc(relace.jmeno)} (${esc(NAZVY_ROLI[relace.role] || relace.role)})
@@ -57,13 +69,19 @@ export function napojPrepinacPodniku(koren, znovu) {
   }));
 }
 
-/** Obrazovka jen pro některé role – jinak hláška v rámu. Vrátí true, když uživatel smí dál. */
-export function overRoli(koren, relace, aktivni, role, nadpis) {
-  if (role.includes(relace.role)) return true;
-  const kdo = role.length === 1 ? 'admin' : role.includes('vedouci') ? 'vedoucí, manažer a správce' : 'manažer a správce';
-  pcRam(koren, relace, aktivni, `<h1>${esc(nadpis)}</h1><div class="chyba">Tuto část vidí jen ${kdo}.</div>`);
+/**
+ * Obrazovka řízení `aktivni` (klíč z OPRAVNENI_OBRAZOVEK) – bez oprávnění hláška v rámu.
+ * Vrátí true, když uživatel smí dál.
+ */
+export function overOpravneni(koren, relace, aktivni, nadpis) {
+  if (smiObrazovku(aktivni)) return true;
+  pcRam(koren, relace, aktivni, `<h1>${esc(nadpis)}</h1>
+    <div class="chyba">K této části nemáš oprávnění. Oprávnění přiděluje správce (Správa → Oprávnění).</div>`);
   return false;
 }
+
+/** Je přihlášený admin? (Záložka Oprávnění, správa účtů adminů.) */
+export const jeAdmin = () => aktualniRelace()?.role === 'admin';
 
 /** Datum a čas „30. 10. 2026 19:46“ (bez času, když je půlnoc a `bezCasu`). */
 export function datumCas(iso, bezCasu = false) {

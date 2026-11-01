@@ -1,29 +1,36 @@
-// Řízení – Správa (kap. 6.4): uživatelé (admin a manažer – přidat jen jméno a roli, role, aktivní, reset PINu; PIN si
-// každý nastaví sám), nastavení po podnicích a položky k doplnění (jen admin). Importy mají vlastní obrazovku.
-// Manažer spravuje jen účty pod adminem (hlídá i server).
+// Řízení – Správa (kap. 6.4), záložky podle oprávnění: Uživatelé (sprava_uzivatelu – přidat jen jméno a roli, role,
+// aktivní, reset PINu; PIN si každý nastaví sám; účty adminů jen admin), Nastavení podniku (nastaveni),
+// Položky k doplnění (importy), Oprávnění (jen admin – matice role × oprávnění). Importy mají vlastní obrazovku.
 import { volej } from '../api.js';
-import { datumCas, napojPrepinacPodniku, overRoli, pcRam, prepinacPodniku } from '../pc.js';
+import { ma } from '../opravneni.js';
+import { datumCas, jeAdmin, napojPrepinacPodniku, overOpravneni, pcRam, prepinacPodniku } from '../pc.js';
 import { NAZVY_ROLI, podnikPodleKodu } from '../podniky.js';
 import { dialog, esc, toast } from '../ui.js';
 import { zvolenyPodnik } from '../uloziste.js';
 
 const HASH = '#/pc/sprava';
-const ZALOZKY = [['uzivatele', 'Uživatelé'], ['nastaveni', 'Nastavení podniku'], ['polozky', 'Položky k doplnění']];
+// [klíč, název, smí vidět?, podle podniku?]
+const ZALOZKY = [
+  ['uzivatele', 'Uživatelé', () => ma('sprava_uzivatelu'), false],
+  ['nastaveni', 'Nastavení podniku', () => ma('nastaveni'), true],
+  ['polozky', 'Položky k doplnění', () => ma('importy'), true],
+  ['opravneni', 'Oprávnění', jeAdmin, false]
+];
 const ROLE = ['skladnik', 'vedouci', 'manazer', 'admin'];
 let zalozka = 'uzivatele';
 let vykresleni = 0;
 
 export async function zobrazPcSprava(koren, relace) {
-  if (!overRoli(koren, relace, 'sprava', ['manazer', 'admin'], 'Správa')) return;
+  if (!overOpravneni(koren, relace, 'sprava', 'Správa')) return;
   const cisloVykresleni = ++vykresleni;
   const podnik = zvolenyPodnik();
-  // Manažer vidí jen uživatele; nastavení a položky k doplnění jsou jen pro admina.
-  const zalozky = relace.role === 'admin' ? ZALOZKY : ZALOZKY.slice(0, 1);
-  if (!zalozky.some(([k]) => k === zalozka)) zalozka = 'uzivatele';
+  const zalozky = ZALOZKY.filter(([, , smi]) => smi());
+  if (!zalozky.some(([k]) => k === zalozka)) zalozka = zalozky[0][0];
+  const podlePodniku = zalozky.find(([k]) => k === zalozka)[3];
   pcRam(koren, relace, 'sprava', `<h1>Správa</h1>
     <div class="tabs">${zalozky.map(([k, n]) => `<button class="chip${k === zalozka ? ' on' : ''}" data-zalozka="${k}">${n}</button>`).join('')}</div>
-    ${zalozka === 'uzivatele' ? '' : prepinacPodniku(podnik)}
-    <div id="sObsah"><p class="hint">Načítám…</p></div>`, zalozka === 'uzivatele' ? null : podnik);
+    ${podlePodniku ? prepinacPodniku(podnik) : ''}
+    <div id="sObsah"><p class="hint">Načítám…</p></div>`, podlePodniku ? podnik : null);
   const znovu = () => zobrazPcSprava(koren, relace);
   koren.querySelectorAll('[data-zalozka]').forEach((b) => b.addEventListener('click', () => {
     zalozka = b.dataset.zalozka;
@@ -35,7 +42,8 @@ export async function zobrazPcSprava(koren, relace) {
   try {
     if (zalozka === 'uzivatele') await uzivatele(obsah, aktualni, znovu);
     else if (zalozka === 'nastaveni') await nastaveni(obsah, podnik, aktualni);
-    else await polozky(obsah, podnik, aktualni, znovu);
+    else if (zalozka === 'polozky') await polozky(obsah, podnik, aktualni, znovu);
+    else await opravneni(obsah, aktualni, znovu);
   } catch (e) {
     if (e.kod !== 'TOKEN' && aktualni()) obsah.innerHTML = `<div class="chyba">${esc(e.message)}</div>`;
   }
@@ -76,8 +84,8 @@ async function uzivatele(obsah, aktualni, znovu) {
       </form>
       <div class="hint mt">Bez PINu – uživatel si ho nastaví při prvním přihlášení. Ať to udělá hned, dokud účet nemá PIN,
         může si ho nastavit kdokoliv, kdo vybere jeho jméno.</div>
-      <div class="hint mt">Skladník: čtečka. Vedoucí: navíc přehled a záznamy, úkoly jen čte. Manažer: navíc zadává úkoly
-        a spravuje uživatele (kromě adminů). Admin: vše včetně nastavení a importů.</div></div>
+      <div class="hint mt">Co která role smí, určuje matice ve Správě → Oprávnění (nastavuje admin). Admin má vždy vše;
+        účty adminů spravuje jen admin.</div></div>
   </div>`;
 
   obsah.querySelectorAll('tr[data-id]').forEach((tr) => {
@@ -193,4 +201,43 @@ async function polozky(obsah, podnik, aktualni, znovu) {
       toast(e.message);
     }
   }));
+}
+
+/** Matice oprávnění (jen admin): řádky = oprávnění po modulech, sloupce = role; admin vždy vše (needitovatelné). */
+async function opravneni(obsah, aktualni, znovu) {
+  const data = await volej('opravneni.nacti');
+  if (!aktualni()) return;
+  const bunka = (o, role) => `<td class="stred"><input type="checkbox" data-klic="${esc(o.klic)}" data-role="${role}"${o.hodnoty[role] ? ' checked' : ''}${
+    role === 'admin' ? ' disabled title="Admin má vždy všechna oprávnění"' : ''}></td>`;
+  obsah.innerHTML = `<div class="panel"><h2>Oprávnění rolí</h2>
+    <div class="hint mb">Zaškrtnuté = role to smí. Server kontroluje oprávnění u každé akce hned po uložení; aplikace podle nich
+      skrývá dlaždice a tlačítka po dalším otevření. Admin má vždy vše.</div>
+    <div class="tblw"><table class="matice">
+      <tr><th>Oprávnění</th>${data.role.map((r) => `<th class="stred">${esc(NAZVY_ROLI[r] || r)}</th>`).join('')}</tr>
+      ${data.moduly.map((m) => `<tr class="modul"><td colspan="${data.role.length + 1}">${esc(m.modul)}</td></tr>
+        ${m.opravneni.map((o) => `<tr><td><b>${esc(o.nazev)}</b><div class="hint">${esc(o.popis)}</div></td>
+          ${data.role.map((r) => bunka(o, r)).join('')}</tr>`).join('')}`).join('')}
+    </table></div>
+    <div class="row mt"><button class="btn" data-ulozit disabled>Uložit oprávnění</button></div></div>
+    <div class="panel"><h2>Poslední změny oprávnění</h2>
+      ${data.zmeny.length ? `<ul class="zmeny">${data.zmeny.map((z) => `<li><b>${datumCas(z.cas)}</b> · ${esc(z.uzivatel)}<div class="hint">${esc(z.detail)}</div></li>`).join('')}</ul>`
+        : '<p class="hint">Zatím žádné změny.</p>'}
+      <div class="hint">Celý log je v tabulce v listu <code>Log_spravy</code>.</div></div>`;
+  const ulozit = obsah.querySelector('[data-ulozit]');
+  obsah.querySelectorAll('input[data-klic]').forEach((c) => c.addEventListener('change', () => { ulozit.disabled = false; }));
+  ulozit.addEventListener('click', async () => {
+    const hodnoty = {};
+    obsah.querySelectorAll('input[data-klic]:not([disabled])').forEach((c) => {
+      (hodnoty[c.dataset.klic] = hodnoty[c.dataset.klic] || {})[c.dataset.role] = c.checked;
+    });
+    ulozit.disabled = true;
+    try {
+      const v = await volej('opravneni.uloz', { hodnoty });
+      toast(v.zmeneno ? `Uloženo – změn: ${v.zmeneno}. Zapsáno do logu.` : 'Beze změny.');
+      znovu();
+    } catch (e) {
+      ulozit.disabled = false;
+      toast(e.message);
+    }
+  });
 }

@@ -4,7 +4,8 @@ import { obnovDiagnostiku } from './diagnostika.js';
 import { odesliFrontu } from './fronta.js';
 import { odpojSkener } from './skener.js';
 import { relace, ulozDnesZapocteno, ulozRelaci } from './uloziste.js';
-import { aktualizujIkonuFronty, nastavBarvuPodniku, toast } from './ui.js';
+import { aktualizujIkonuFronty, nastavBarvuPodniku, prejdi, toast } from './ui.js';
+import { vychoziObrazovkaRizeni } from './pc.js';
 import { zobrazPrihlaseni } from './obrazovky/prihlaseni.js';
 import { zobrazRozcestnik } from './obrazovky/rozcestnik.js';
 import { zobrazExpiraceDomu } from './obrazovky/expirace-domu.js';
@@ -25,7 +26,7 @@ const OBRAZOVKY = {
   '#/expirace/kontrola': zobrazKontroluLokace,
   '#/expirace/ukoly': zobrazMojeUkoly,
   '#/expirace/blizi': zobrazBliziSe,
-  '#/pc': zobrazPcPrehled,
+  '#/pc': () => prejdi(vychoziObrazovkaRizeni()),
   '#/pc/prehled': zobrazPcPrehled,
   '#/pc/ukoly': zobrazPcUkoly,
   '#/pc/zaznamy': zobrazPcZaznamy,
@@ -77,12 +78,13 @@ window.addEventListener('cs:davka-odeslana', (e) => {
 obnovDiagnostiku();
 vykresli();
 
-// Ověření přihlášení na serveru (účet mohl být deaktivován, role změněna). Bez signálu se nic neděje.
+// Ověření přihlášení na serveru (účet mohl být deaktivován, role nebo oprávnění změněny). Bez signálu se nic neděje.
 if (relace()) {
   volej('ja').then((ja) => {
     const r = relace();
-    if (r && r.role !== ja.role) {
-      ulozRelaci({ ...r, role: ja.role });
+    const opravneni = ja.opravneni || r?.opravneni;
+    if (r && (r.role !== ja.role || JSON.stringify(r.opravneni) !== JSON.stringify(opravneni))) {
+      ulozRelaci({ ...r, role: ja.role, opravneni });
       vykresli();
     }
   }).catch(() => {});

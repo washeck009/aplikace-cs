@@ -49,10 +49,12 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
 - Když něco ve specifikaci chybí nebo si odporuje, **zeptej se**, nevymýšlej.
 
 ## Data a oprávnění (závazné – rozhodnutí vlastníka z etapy 4, 2026-11-01)
-1. **Role v řízení:** vedoucí jen čte (přehled, záznamy, úkoly s plněním); zadávat a rušit úkoly smí manažer a admin;
-   uživatele spravuje manažer (jen účty pod adminem – `muzeSpravovat_`) a admin; nastavení, položky k doplnění
-   a Importy jen admin. Každou novou akci API zařaď do `mapaAkci_()` s minimální rolí – **oprávnění vždy
-   ověřuje server** (`ROLE_UROVEN`: skladník 1, vedoucí 2, manažer 3, admin 4), klient jen skrývá ovládání.
+1. **Oprávnění, ne pevné role (od 0.4.2):** co role smí, určuje list `Opravneni` / *Správa → Oprávnění* (jen admin);
+   admin má vždy vše. Každou novou akci API zařaď do `mapaAkci_()` s klíčem `opravneni` (nebo `prihlaseni: true`) –
+   **oprávnění vždy ověřuje server** (`maOpravneni_`), klient podle `ma()` z `web/js/opravneni.js` jen skrývá ovládání.
+   **Nový modul** přidá svou skupinu klíčů do `MODULY_OPRAVNENI` (Konfigurace.gs) s výchozími rolemi, svým akcím
+   klíče v `mapaAkci_()` a dlaždici / obrazovky s klíči v klientu (`rozcestnik.js`, `OPRAVNENI_OBRAZOVEK` v `pc.js`);
+   list a matice se doplní samy. Účty adminů spravuje jen admin (`muzeSpravovat_`).
 2. **Kontrolují se jen lokace H nebo P s číslicí** (`LOKACE_KONTROLOVANA` = `/^[HP]\d/` – H1, P0…; ne PAL, PRIJEM,
    BAL, RAMP). Jen ty patří do plánovače a pokrytí (`mapaHlidanychLokaci_`). Klient importů má stejný regulár –
    při změně uprav obě místa.

@@ -5,46 +5,51 @@
  */
 
 /**
- * Seznam akcí: role = minimální role (null = bez přihlášení).
+ * Seznam akcí. Bez `prihlaseni` = bez přihlášení; `prihlaseni: true` = stačí platné přihlášení;
+ * `opravneni` = klíč oprávnění (nebo pole – stačí jedno z nich) podle listu Opravneni (MODULY_OPRAVNENI);
+ * `role: 'admin'` = jen admin (oprávnění samotná). Nový modul přidá své akce s vlastními klíči oprávnění.
  * Ve funkci, ne v konstantě – funkce z ostatních souborů nemusí být při načtení souboru ještě definované.
  */
 function mapaAkci_() {
   return {
-    'uzivatele.seznam': { role: null, fn: akceSeznamUzivatelu_ },
-    'login': { role: null, fn: akceLogin_ },
-    'login.info': { role: null, fn: akceLoginInfo_ },
-    'pin.nastav': { role: null, fn: akcePinNastav_ },
-    'ucet.pin': { role: 'skladnik', fn: akceUcetPin_ },
-    'logout': { role: 'skladnik', fn: akceLogout_ },
-    'ja': { role: 'skladnik', fn: akceJa_ },
-    'data.zaklad': { role: 'skladnik', fn: akceDataZaklad_ },
-    'lokace.nacti': { role: 'skladnik', fn: akceLokaceNacti_ },
-    'lokace.dokonci': { role: 'skladnik', fn: akceLokaceDokonci_ },
-    'kontroly.dnes': { role: 'skladnik', fn: akceKontrolyDnes_ },
-    'foto.nahraj': { role: 'skladnik', fn: akceFotoNahraj_ },
-    'zaznam.stav': { role: 'skladnik', fn: akceZaznamStav_ },
-    'ukoly.moje': { role: 'skladnik', fn: akceUkolyMoje_ },
-    'diagnostika.odesli': { role: 'skladnik', fn: akceDiagnostikaOdesli_ },
-    // Řízení: vedoucí vidí přehled, záznamy a úkoly; zadávat a rušit úkoly smí manažer a admin.
-    'prehled.data': { role: 'vedouci', fn: akcePrehledData_ },
-    'zaznamy.seznam': { role: 'vedouci', fn: akceZaznamySeznam_ },
-    'kontroly.log': { role: 'vedouci', fn: akceKontrolyLog_ },
-    'ukoly.seznam': { role: 'vedouci', fn: akceUkolySeznam_ },
-    'ukoly.zadej': { role: 'manazer', fn: akceUkolyZadej_ },
-    'ukoly.zrus': { role: 'manazer', fn: akceUkolyZrus_ },
-    // Importy, nastavení a položky k doplnění: jen admin.
-    'import.info': { role: 'admin', fn: akceImportInfo_ },
-    'import.polozky': { role: 'admin', fn: akceImportPolozky_ },
-    'import.lokace': { role: 'admin', fn: akceImportLokace_ },
-    'import.stav': { role: 'admin', fn: akceImportStav_ },
-    // Uživatele spravuje admin i manažer (manažer jen účty pod adminem – hlídá Sprava.gs).
-    'sprava.uzivatele': { role: 'manazer', fn: akceSpravaUzivatele_ },
-    'sprava.uzivatel.uloz': { role: 'manazer', fn: akceSpravaUzivatelUloz_ },
-    'sprava.uzivatel.reset': { role: 'manazer', fn: akceSpravaUzivatelReset_ },
-    'sprava.nastaveni': { role: 'admin', fn: akceSpravaNastaveni_ },
-    'sprava.nastaveni.uloz': { role: 'admin', fn: akceSpravaNastaveniUloz_ },
-    'sprava.polozky': { role: 'admin', fn: akceSpravaPolozky_ },
-    'sprava.polozka.uloz': { role: 'admin', fn: akceSpravaPolozkaUloz_ }
+    'uzivatele.seznam': { fn: akceSeznamUzivatelu_ },
+    'login': { fn: akceLogin_ },
+    'login.info': { fn: akceLoginInfo_ },
+    'pin.nastav': { fn: akcePinNastav_ },
+    'ucet.pin': { prihlaseni: true, fn: akceUcetPin_ },
+    'logout': { prihlaseni: true, fn: akceLogout_ },
+    'ja': { prihlaseni: true, fn: akceJa_ },
+    'data.zaklad': { prihlaseni: true, fn: akceDataZaklad_ },
+    'kontroly.dnes': { prihlaseni: true, fn: akceKontrolyDnes_ },
+    'diagnostika.odesli': { prihlaseni: true, fn: akceDiagnostikaOdesli_ },
+    // Expirace – čtečka
+    'lokace.nacti': { opravneni: 'kontrola', fn: akceLokaceNacti_ },
+    'lokace.dokonci': { opravneni: 'kontrola', fn: akceLokaceDokonci_ },
+    'foto.nahraj': { opravneni: 'kontrola', fn: akceFotoNahraj_ },
+    'zaznam.stav': { opravneni: 'vydano', fn: akceZaznamStav_ },
+    'ukoly.moje': { opravneni: 'moje_ukoly', fn: akceUkolyMoje_ },
+    // Expirace – řízení (úkoly ke čtení vidí, kdo má přehledy nebo zadávání)
+    'prehled.data': { opravneni: 'prehledy', fn: akcePrehledData_ },
+    'zaznamy.seznam': { opravneni: 'zaznamy', fn: akceZaznamySeznam_ },
+    'kontroly.log': { opravneni: 'zaznamy', fn: akceKontrolyLog_ },
+    'ukoly.seznam': { opravneni: ['prehledy', 'ukoly_zadavani'], fn: akceUkolySeznam_ },
+    'ukoly.zadej': { opravneni: 'ukoly_zadavani', fn: akceUkolyZadej_ },
+    'ukoly.zrus': { opravneni: 'ukoly_zadavani', fn: akceUkolyZrus_ },
+    // Správa (účty adminů spravuje jen admin – hlídá Sprava.gs)
+    'sprava.uzivatele': { opravneni: 'sprava_uzivatelu', fn: akceSpravaUzivatele_ },
+    'sprava.uzivatel.uloz': { opravneni: 'sprava_uzivatelu', fn: akceSpravaUzivatelUloz_ },
+    'sprava.uzivatel.reset': { opravneni: 'sprava_uzivatelu', fn: akceSpravaUzivatelReset_ },
+    'import.info': { opravneni: 'importy', fn: akceImportInfo_ },
+    'import.polozky': { opravneni: 'importy', fn: akceImportPolozky_ },
+    'import.lokace': { opravneni: 'importy', fn: akceImportLokace_ },
+    'import.stav': { opravneni: 'importy', fn: akceImportStav_ },
+    'sprava.polozky': { opravneni: 'importy', fn: akceSpravaPolozky_ },
+    'sprava.polozka.uloz': { opravneni: 'importy', fn: akceSpravaPolozkaUloz_ },
+    'sprava.nastaveni': { opravneni: 'nastaveni', fn: akceSpravaNastaveni_ },
+    'sprava.nastaveni.uloz': { opravneni: 'nastaveni', fn: akceSpravaNastaveniUloz_ },
+    // Oprávnění samotná nastavuje jen admin (admin má vždy vše).
+    'opravneni.nacti': { role: 'admin', fn: akceOpravneniNacti_ },
+    'opravneni.uloz': { role: 'admin', fn: akceOpravneniUloz_ }
   };
 }
 
@@ -59,9 +64,10 @@ function doPost(e) {
     }
     const akce = mapaAkci_()[pozadavek.action];
     if (!akce) throw chyba_('Neznámá akce: ' + pozadavek.action);
-    if (akce.role) {
+    if (akce.prihlaseni || akce.opravneni || akce.role) {
       uzivatel = overToken_(pozadavek.token);
-      if (!maRoli_(uzivatel, akce.role)) throw chyba_('Na tuto akci nemáš oprávnění.', 'ROLE');
+      const smi = akce.role ? maRoli_(uzivatel, akce.role) : !akce.opravneni || maOpravneni_(uzivatel, akce.opravneni);
+      if (!smi) throw chyba_('Na tuto akci nemáš oprávnění.', 'ROLE');
     }
     return odpoved_({ ok: true, data: akce.fn(pozadavek.data || {}, uzivatel) });
   } catch (err) {

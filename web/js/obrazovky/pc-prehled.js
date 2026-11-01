@@ -1,7 +1,7 @@
 // Řízení – Přehled podniku (kap. 6.1): KPI, mapa pokrytí, kontroly po lidech a týdnech proti cíli, zboží podle pásem
 // + trend, FEFO upozornění, plnění úkolů. Vše spočítá server jednou akcí prehled.data (krátce drží v cache).
 import { volej } from '../api.js';
-import { cislo, datumCas, napojPrepinacPodniku, overRoli, pcRam, prepinacPodniku, ROLE_PC } from '../pc.js';
+import { cislo, datumCas, napojPrepinacPodniku, overOpravneni, pcRam, prepinacPodniku } from '../pc.js';
 import { podnikPodleKodu } from '../podniky.js';
 import { esc } from '../ui.js';
 import { zvolenyPodnik } from '../uloziste.js';
@@ -11,7 +11,7 @@ const NAZVY_PASEM = { x: 'Expirováno (na lokaci)', r: 'Expiruje brzy', y: 'Pozo
 let vykresleni = 0;
 
 export async function zobrazPcPrehled(koren, relace, { obnovit = false } = {}) {
-  if (!overRoli(koren, relace, 'prehled', ROLE_PC, 'Přehled')) return;
+  if (!overOpravneni(koren, relace, 'prehled', 'Přehled')) return;
   const cisloVykresleni = ++vykresleni;
   const podnik = zvolenyPodnik();
   const nazev = podnikPodleKodu(podnik)?.nazev || podnik;

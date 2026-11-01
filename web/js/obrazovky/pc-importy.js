@@ -4,7 +4,7 @@
 // jde jen to. Každý import: náhled (nic se nezapíše) → Importovat.
 import { volej } from '../api.js';
 import { normalizujKod } from '../expirace.js';
-import { cislo, datumCas, napojPrepinacPodniku, overRoli, pcRam, prepinacPodniku } from '../pc.js';
+import { cislo, datumCas, napojPrepinacPodniku, overOpravneni, pcRam, prepinacPodniku } from '../pc.js';
 import { podnikPodleKodu } from '../podniky.js';
 import { esc, toast } from '../ui.js';
 import { zvolenyPodnik } from '../uloziste.js';
@@ -44,7 +44,7 @@ const KARTY = [
 let vykresleni = 0;
 
 export async function zobrazPcImporty(koren, relace) {
-  if (!overRoli(koren, relace, 'importy', ['admin'], 'Importy')) return;
+  if (!overOpravneni(koren, relace, 'importy', 'Importy')) return;
   const cisloVykresleni = ++vykresleni;
   const podnik = zvolenyPodnik();
   const nazev = podnikPodleKodu(podnik)?.nazev || podnik;

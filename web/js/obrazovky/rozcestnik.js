@@ -1,14 +1,17 @@
-// Rozcestník modulů hlavní aplikace (zatím jen Expirace).
+// Rozcestník modulů hlavní aplikace (zatím jen Expirace). Dlaždice podle oprávnění (Správa → Oprávnění).
 import { napojPrepinacDiagnostiky } from '../diagnostika.js';
-import { ROLE_PC } from '../pc.js';
+import { ma, OPRAVNENI_RIZENI } from '../opravneni.js';
+import { vychoziObrazovkaRizeni } from '../pc.js';
 import { NAZVY_ROLI } from '../podniky.js';
 import { VERZE } from '../verze.js';
 import { esc, hlavicka, napojHlavicku, prejdi } from '../ui.js';
 
+// opravneni = stačí jedno z nich; nový modul přidá dlaždici se svými klíči.
 const MODULY = [
-  { cil: '#/expirace', ikona: '⏳', nazev: 'Expirace', popis: 'Kontrola expirací zboží na lokacích' },
-  // Jen vedoucí, manažer, admin – skladník dlaždici nevidí (a server mu tyto akce odmítne).
-  { cil: '#/pc/prehled', ikona: '💻', nazev: 'Expirace – řízení', popis: 'Přehledy, záznamy, úkoly, správa', role: ROLE_PC }
+  { cil: '#/expirace', ikona: '⏳', nazev: 'Expirace', popis: 'Kontrola expirací zboží na lokacích',
+    opravneni: ['kontrola', 'vydano', 'moje_ukoly'] },
+  { cil: () => vychoziObrazovkaRizeni(), ikona: '💻', nazev: 'Expirace – řízení', popis: 'Přehledy, záznamy, úkoly, správa',
+    opravneni: OPRAVNENI_RIZENI }
 ];
 
 export function zobrazRozcestnik(koren, relace) {
@@ -16,16 +19,19 @@ export function zobrazRozcestnik(koren, relace) {
     <div class="radek-mezi"><p class="hint">Přihlášen: <b>${esc(relace.jmeno)}</b> · ${esc(NAZVY_ROLI[relace.role] || relace.role)}</p>
       <button class="odkaz" data-ucet>👤 Můj účet</button></div>
     <div class="h">Moduly</div>
-    ${MODULY.filter((m) => !m.role || m.role.includes(relace.role)).map((m) => `<button class="tile" data-modul="${m.cil}">
+    ${MODULY.map((m, i) => (ma(...m.opravneni) ? `<button class="tile" data-modul="${i}">
       <span class="ic">${m.ikona}</span>
       <div><div class="tt">${m.nazev}</div><div class="ss">${m.popis}</div></div>
-    </button>`).join('')}
+    </button>` : '')).join('') || '<p class="hint">Nemáš přidělené žádné oprávnění – obrať se na správce.</p>'}
   </main>
   <footer class="pata hint">Aplikace CS · <span data-verze>verze ${VERZE}</span></footer>`;
 
   napojHlavicku(koren);
   // 5× klepnutí na verzi = diagnostika skenování.
   napojPrepinacDiagnostiky(koren.querySelector('[data-verze]'));
-  koren.querySelectorAll('[data-modul]').forEach((b) => b.addEventListener('click', () => prejdi(b.dataset.modul)));
+  koren.querySelectorAll('[data-modul]').forEach((b) => b.addEventListener('click', () => {
+    const cil = MODULY[Number(b.dataset.modul)].cil;
+    prejdi(typeof cil === 'function' ? cil() : cil);
+  }));
   koren.querySelector('[data-ucet]').addEventListener('click', () => prejdi('#/ucet'));
 }

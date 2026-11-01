@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.2 – 2026-11-01 – Oprávnění nastavitelná v aplikaci
+
+### Přidáno
+- List **`Opravneni`** (řádek = klíč oprávnění, sloupce skladnik / vedouci / manazer / admin, TRUE/FALSE) a registr
+  `MODULY_OPRAVNENI` v `Konfigurace.gs`: kontrola lokací, vydáno / zlikvidováno, moje úkoly, přehledy, záznamy a export,
+  zadávání / rušení úkolů, správa uživatelů, importy a číselník, nastavení. Výchozí hodnoty = dosavadní pravidla.
+- **Správa → Oprávnění** (jen admin): matice se zaškrtávátky po modulech; admin má vždy vše (sloupec needitovatelný).
+  Uložení se zapíše do nového listu **`Log_spravy`** (kdo, kdy, co) a v matici je seznam posledních změn.
+- Nový modul jen přidá svou skupinu klíčů do `MODULY_OPRAVNENI` – list (setup) i matice se doplní samy; chybějící
+  řádek nebo buňka = výchozí hodnota z registru.
+
+### Změněno
+- **Server kontroluje u každé akce oprávnění, ne pevnou roli** (`mapaAkci_()` v Api.gs: `opravneni` / `prihlaseni` /
+  `role: 'admin'` jen pro oprávnění samotná). Přihlášení a `ja` vracejí seznam oprávnění; klient podle něj
+  (`web/js/opravneni.js`, `ma()`) skrývá dlaždice v rozcestníku a Expiraci, položky menu řízení, záložky Správy
+  a tlačítka (Na lokaci, Vydáno / Zlikvidováno, Začít úkol, zadávání úkolů).
+- Úkoly v řízení vidí, kdo má *Přehledy* nebo *Zadávání úkolů*; účty adminů dál spravuje jen admin.
+- Matice se drží 5 minut v cache – změna ve Správě platí hned, ruční změna přímo v listu nejpozději za 5 minut.
+
 ## 0.4.1 – 2026-11-01 – Vlastní PIN uživatele
 
 ### Změněno

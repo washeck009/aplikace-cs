@@ -1,6 +1,7 @@
 /**
- * Správa (jen admin): uživatelé (přidat, role, aktivní, reset PINu – nový PIN se vrátí jen jednou),
- * nastavení po podnicích, položky k doplnění (doplnit název / spárovat s číslem položky).
+ * Správa: uživatelé (přidat jen jméno a roli, role, aktivní, reset PINu), nastavení po podnicích, položky k doplnění
+ * (doplnit název / spárovat s číslem položky). Kdo co smí, určují oprávnění (Api.gs, list Opravneni);
+ * oprávnění samotná nastavuje jen admin (Opravneni.gs).
  */
 
 // Nastavení, která musí být celé nezáporné číslo (prázdné = výchozí / bez cíle).
@@ -8,9 +9,9 @@ const NASTAVENI_CISLA = ['hranice_cervena', 'hranice_zluta', 'cil_kontrol_tyden'
   'planovac_cervene_overit_dni', 'planovac_max_lokaci_ukol', 'planovac_naskladneno_dni'];
 const NASTAVENI_ANO_NE = ['planovac_naskladneno_zapnuto'];
 
-/* ---------- Uživatelé (admin a manažer) ---------- */
+/* ---------- Uživatelé (oprávnění sprava_uzivatelu) ---------- */
 // PIN si každý nastavuje sám (při prvním přihlášení, po resetu, v Můj účet) – správa PIN nikdy nevidí ani nezadává.
-// Manažer spravuje jen skladníky, vedoucí a manažery: admina nezaloží, nezmění ani mu neresetuje PIN.
+// Kdo není admin, spravuje jen skladníky, vedoucí a manažery: admina nezaloží, nezmění ani mu neresetuje PIN.
 
 function uzivatelProKlienta_(u) {
   return {
@@ -23,9 +24,12 @@ function uzivatelProKlienta_(u) {
   };
 }
 
-/** Smí `kdo` spravovat účet s rolí `role`? Admin všechny, manažer jen role pod adminem. */
+/**
+ * Smí `kdo` (s oprávněním sprava_uzivatelu – ověřilo Api.gs) spravovat účet s rolí `role`?
+ * Admin všechny, ostatní jen role pod adminem.
+ */
 function muzeSpravovat_(kdo, role) {
-  return kdo.role === 'admin' || (kdo.role === 'manazer' && role !== 'admin');
+  return kdo.role === 'admin' || role !== 'admin';
 }
 
 function akceSpravaUzivatele_(data, uzivatel) {
@@ -91,7 +95,7 @@ function akceSpravaUzivatelReset_(data, uzivatel) {
   });
 }
 
-/* ---------- Nastavení ---------- */
+/* ---------- Nastavení (oprávnění nastaveni) ---------- */
 
 function akceSpravaNastaveni_(data) {
   const podnik = overPodnik_(data.podnik);
@@ -153,7 +157,7 @@ function akceSpravaNastaveniUloz_(data) {
   return akceSpravaNastaveni_({ podnik: podnik });
 }
 
-/* ---------- Položky k doplnění ---------- */
+/* ---------- Položky k doplnění (oprávnění importy – číselník) ---------- */
 
 /** {podnik} → položky „k doplnění“ (neznámé EAN ze čtečky) s počtem záznamů a návrhem názvu podle čísla položky. */
 function akceSpravaPolozky_(data) {

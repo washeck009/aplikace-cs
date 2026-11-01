@@ -53,12 +53,6 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
   s aktuálním filtrem a **log kontrol** za období (max. 366 dní).
 - **Správa** (admin): uživatelé (přidat jen jméno a roli, role, aktivní, PIN nastaven ano/ne, reset PINu – od 0.4.1
   i manažer), nastavení po podnicích, položky k doplnění (doplnit název nebo spárovat s číslem položky).
-
-**Verze 0.4.1 – vlastní PIN**
-- Uživatel se zakládá bez PINu; po výběru jména si PIN nastaví sám (*Nastav si PIN*, 2×) a je přihlášen.
-- *Můj účet* (odkaz v rozcestníku i v řízení) → změna PINu: současný + nový 2×; ostatní zařízení se odhlásí.
-- Reset PINu (admin, manažer, menu tabulky) PIN smaže a odhlásí uživatele. Triviální PINy (1111, 1234, 4321…) zakázané.
-- Manažer spravuje ve Správě uživatele (kromě adminů); nastavení a importy zůstávají adminovi.
 - **Importy** (admin) z xlsx / csv, podnik se volí při importu, vždy náhled → *Importovat*:
   - *Číselník* (EAN, Číslo položky, Název položky) – nové přidá, změny přepíše, položky „k doplnění“ doplní.
   - *Lokace* (LOKACE) – jen H nebo P s číslicí (H1, P0…); regálové `H2-P-37-1` / `H1-AB-12` aktivní, zóny
@@ -72,6 +66,19 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
   `planovac_naskladneno_zapnuto`. Do plánovače ani pokrytí nepatří lokace mimo H/P.
 - EAN a čísla položek se porovnávají bez úvodních nul (Excel je u čísel zahazuje) – sken `0…` najde i EAN uložený bez nuly.
 - Ukázkové soubory se **smyšlenými** daty pro vyzkoušení importů: [`docs/testovaci-data/`](docs/testovaci-data/).
+
+**Verze 0.4.1 – vlastní PIN**
+- Uživatel se zakládá bez PINu; po výběru jména si PIN nastaví sám (*Nastav si PIN*, 2×) a je přihlášen.
+- *Můj účet* (odkaz v rozcestníku i v řízení) → změna PINu: současný + nový 2×; ostatní zařízení se odhlásí.
+- Reset PINu (admin, manažer, menu tabulky) PIN smaže a odhlásí uživatele. Triviální PINy (1111, 1234, 4321…) zakázané.
+- Manažer spravuje ve Správě uživatele (kromě adminů); nastavení a importy zůstávají adminovi.
+
+**Verze 0.4.2 – oprávnění nastavitelná v aplikaci**
+- Co která role smí, určuje matice *Správa → Oprávnění* (jen admin; list `Opravneni`): kontrola lokací, vydáno /
+  zlikvidováno, moje úkoly, přehledy, záznamy a export, zadávání úkolů, správa uživatelů, importy, nastavení.
+  Admin má vždy vše. Server kontroluje oprávnění u každé akce; aplikace podle nich skrývá dlaždice, menu a tlačítka.
+- Uložení matice se zapíše do listu `Log_spravy` (kdo, kdy, co). Výchozí hodnoty = dosavadní pravidla.
+- Nový modul jen přidá své klíče oprávnění (`MODULY_OPRAVNENI` v `Konfigurace.gs`).
 
 ## Struktura repa
 
@@ -105,7 +112,8 @@ Celé nastavení se dělá jednou. Potřebuješ osobní Google účet (Gmail) a 
 4. Zpět v **Editoru** (ikona `< >`) otevři `appsscript.json`, smaž obsah a vlož obsah souboru
    [`apps-script/appsscript.json`](apps-script/appsscript.json).
 5. Pro každý soubor `.gs` ze složky [`apps-script/`](apps-script/) – `Api.gs`, `Auth.gs`, `Fotky.gs`, `Import.gs`,
-   `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`, `Planovac.gs`, `Prehled.gs`, `Setup.gs`, `Sprava.gs`, `Ukoly.gs`:
+   `Konfigurace.gs`, `Kontrola.gs`, `Listy.gs`, `Opravneni.gs`, `Planovac.gs`, `Prehled.gs`, `Setup.gs`, `Sprava.gs`,
+   `Ukoly.gs`:
    - klikni na **+** vedle *Soubory* → **Skript**, zadej název bez `.gs` (např. `Api`),
    - smaž předvyplněný obsah a vlož celý obsah souboru z repa.
 6. Výchozí soubor `Kód.gs` smaž (tři tečky vedle názvu → *Smazat*).
@@ -123,7 +131,8 @@ Celé nastavení se dělá jednou. Potřebuješ osobní Google účet (Gmail) a 
    PIN si nastavíš sám hned při prvním přihlášení v aplikaci (vybereš své jméno → *Nastav si PIN*);
    uloží se jen jako hash, nikde jinde se neobjeví.
 5. Zkontroluj, že vznikly listy `Uzivatele`, `Polozky`, `Lokace`, `Zaznamy`, `Kontroly`, `Ukoly`, `Nastaveni`,
-   `Import_stav_lokaci` a `Log_chyb`, a že v `Nastaveni` jsou hodnoty pro `DEK` i `STA`.
+   `Opravneni`, `Log_spravy`, `Import_stav_lokaci` a `Log_chyb`, a že v `Nastaveni` jsou hodnoty pro `DEK` i `STA`
+   a v `Opravneni` matice oprávnění s výchozími hodnotami.
 
 Setup můžeš spouštět opakovaně – doplní jen to, co chybí, nic nepřepíše.
 
@@ -133,7 +142,9 @@ Setup můžeš spouštět opakovaně – doplní jen to, co chybí, nic nepřep�
 7. **Aplikace CS → Plánovač – zapnout denní spouštění (5:30)**. Google požádá o oprávnění ke spouštěčům – povol.
    Plánovač pak každé ráno vytvoří úkoly (stav spouštěče je vidět v PC části na obrazovce Úkoly).
 
-**Další uživatelé:** v aplikaci *Expirace – řízení → Správa* (admin, manažer), nebo menu **Aplikace CS → Přidat
+**Co kdo smí:** *Expirace – řízení → Správa → Oprávnění* (jen admin) – zaškrtávací matice role × oprávnění.
+
+**Další uživatelé:** v aplikaci *Expirace – řízení → Správa* (s oprávněním Správa uživatelů), nebo menu **Aplikace CS → Přidat
 uživatele** – jen **jméno a role**, bez PINu. Roli napiš číslem (1 skladník, 2 vedoucí, 3 manažer, 4 admin) nebo slovem –
 velká písmena ani háčky nevadí. Uživatel si PIN nastaví sám při prvním přihlášení (vybere jméno → *Nastav si PIN*,
 PIN 2×) – ať to udělá hned, do té doby si ho může nastavit kdokoliv, kdo vybere jeho jméno.
@@ -184,6 +195,25 @@ URL do veřejného repa patří – bez platného PINu se přes ni nic nedostane
 4. Přihlas se: vyber jméno, zadej PIN. Čtečka si pamatuje posledního uživatele.
 
 Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí stáhne a projeví se při dalším otevření aplikace.
+
+---
+
+## Přechod na verzi 0.4.2 (oprávnění v aplikaci, pro už nasazenou verzi 0.4.1)
+
+Web (verze **0.4.2**) se nasadí sám po pushi do `main`. V Apps Scriptu:
+
+1. V tabulce **Rozšíření → Apps Script**.
+2. **Nový soubor** (**+** vedle *Soubory* → **Skript**, název `Opravneni`) – obsah
+   [`apps-script/Opravneni.gs`](apps-script/Opravneni.gs).
+3. **Nahraď celý obsah** změněných souborů verzí z repa: `Api.gs`, `Auth.gs`, `Konfigurace.gs`, `Setup.gs`,
+   `Sprava.gs`, `Ukoly.gs`. Ostatní se nezměnily. Ulož (Ctrl+S).
+4. Vrať se do tabulky, **obnov stránku** (F5) a spusť **Aplikace CS → Založit / doplnit listy (setup)** – založí listy
+   `Opravneni` (matice s výchozími hodnotami = dosavadní pravidla) a `Log_spravy`. Nic existujícího nepřepíše.
+   (Aplikace by fungovala i bez toho – chybějící list = výchozí hodnoty – ale takhle matici uvidíš i v tabulce.)
+5. **Nasadit → Spravovat nasazení** → tužka → *Verze: **Nová verze*** → **Nasadit**. URL zůstane stejná.
+6. Na čtečkách a PC aplikaci dvakrát zavři a otevři (PC: Ctrl+F5) – verze **0.4.2**.
+7. Jako admin: *Expirace – řízení → Správa → Oprávnění* – zkontroluj / uprav matici a *Uložit oprávnění*.
+   Server změnu použije hned; dlaždice a tlačítka se uživatelům přizpůsobí po dalším otevření aplikace.
 
 ---
 
@@ -347,14 +377,19 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
 - **Při každé změně ve `web/` zvyš verzi** v `web/sw.js` (`VERZE`) i ve `web/js/verze.js` – jinak čtečky drží starou cache.
 - API: `POST` na URL webové aplikace, `Content-Type: text/plain`, tělo `{"action", "token", "data"}`,
   odpověď `{"ok": true, "data"}` nebo `{"ok": false, "error", "kod"}`.
-  Akce: `uzivatele.seznam`, `login`, `logout`, `ja`, `data.zaklad`, `lokace.nacti`, `lokace.dokonci`,
-  `kontroly.dnes` (+ počet otevřených úkolů), `foto.nahraj`, `zaznam.stav` (Vydáno/Zlikvidováno, idempotentní podle
-  `id_akce`), `ukoly.moje`, `diagnostika.odesli`; vedoucí+: `prehled.data` (cache 5 min, `obnovit: true` ji obejde),
-  `zaznamy.seznam`, `kontroly.log`, `ukoly.seznam`; manažer+: `ukoly.zadej`, `ukoly.zrus`, `sprava.uzivatele`,
-  `sprava.uzivatel.uloz`, `sprava.uzivatel.reset` (manažer jen účty pod adminem); admin: `import.info`,
-  `import.polozky`, `import.lokace`, `import.stav` (bez `potvrdit` jen náhled), `sprava.nastaveni`,
-  `sprava.nastaveni.uloz`, `sprava.polozky`, `sprava.polozka.uloz`. Bez přihlášení: `login.info` (má uživatel PIN?),
-  `pin.nastav` (jen účet bez PINu); přihlášený: `ucet.pin` (změna PINu, vrátí nový token).
+  Každá akce má v `mapaAkci_()` (Api.gs) buď nic (bez přihlášení), `prihlaseni: true`, klíč `opravneni`, nebo
+  `role: 'admin'`. Bez přihlášení: `uzivatele.seznam`, `login`, `login.info` (má uživatel PIN?), `pin.nastav` (jen účet
+  bez PINu). Přihlášený: `logout`, `ja` (+ seznam oprávnění), `data.zaklad`, `kontroly.dnes`, `ucet.pin`,
+  `diagnostika.odesli`. Podle oprávnění: `kontrola` – `lokace.nacti`, `lokace.dokonci`, `foto.nahraj`; `vydano` –
+  `zaznam.stav` (idempotentní podle `id_akce`); `moje_ukoly` – `ukoly.moje`; `prehledy` – `prehled.data` (cache 5 min,
+  `obnovit: true` ji obejde); `zaznamy` – `zaznamy.seznam`, `kontroly.log`; `prehledy` nebo `ukoly_zadavani` –
+  `ukoly.seznam`; `ukoly_zadavani` – `ukoly.zadej`, `ukoly.zrus`; `sprava_uzivatelu` – `sprava.uzivatele`,
+  `sprava.uzivatel.uloz`, `sprava.uzivatel.reset` (účty adminů jen admin); `importy` – `import.info`, `import.polozky`,
+  `import.lokace`, `import.stav` (bez `potvrdit` jen náhled), `sprava.polozky`, `sprava.polozka.uloz`; `nastaveni` –
+  `sprava.nastaveni`, `sprava.nastaveni.uloz`. Jen admin: `opravneni.nacti`, `opravneni.uloz`.
+- **Nový modul a oprávnění:** přidej skupinu klíčů do `MODULY_OPRAVNENI` (Konfigurace.gs, s výchozími rolemi), svým
+  akcím v `mapaAkci_()` uveď `opravneni`, v klientu podmiň dlaždice / obrazovky přes `ma()` (`web/js/opravneni.js`,
+  `OPRAVNENI_OBRAZOVEK` v `web/js/pc.js`). List `Opravneni` doplní setup, matice ve Správě se ukáže sama.
 - Excel v prohlížeči: SheetJS 0.20.3 z `cdn.sheetjs.com` (pevná verze + kontrolní součet), načte se až v řízení.
 - Plánovač: funkce `planovac()` (spouštěč i menu), instalace spouštěče `instalujPlanovac()`.
 - `lokace.dokonci` je idempotentní podle `id_davky`: zpracované dávky si server pamatuje 30 dní ve Script Properties

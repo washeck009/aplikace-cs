@@ -9,14 +9,44 @@ const PODNIKY = {
   STA: 'Stachema'
 };
 
-// Role a jejich úroveň – vyšší úroveň smí vše, co nižší.
-// Vedoucí: přehled, záznamy, úkoly jen ke čtení. Manažer: navíc zadává a ruší úkoly. Admin: navíc správa a importy.
+// Role a jejich úroveň. Co která role smí, určují oprávnění (MODULY_OPRAVNENI, list Opravneni) – úroveň se
+// používá jen pro „přihlášen“ a pro to, že účty adminů spravuje jen admin.
 const ROLE_UROVEN = {
   skladnik: 1,
   vedouci: 2,
   manazer: 3,
   admin: 4
 };
+
+/**
+ * Oprávnění po modulech: [klíč, název, popis, výchozí role (kromě admina – ten má vždy vše)].
+ * Server kontroluje u každé akce oprávnění (mapaAkci_ v Api.gs), ne pevnou roli; hodnoty se nastavují v listu
+ * Opravneni / ve Správě → Oprávnění. **Nový modul jen přidá svou skupinu sem** a u svých akcí uvede klíč –
+ * list Opravneni (setup, a do té doby výchozí hodnoty) i matice ve Správě se doplní samy.
+ */
+const MODULY_OPRAVNENI = [
+  { modul: 'Expirace – čtečka', opravneni: [
+    ['kontrola', 'Kontrola lokací', 'skenování lokací, potvrzení / změny / nové zboží, fotky',
+      ['skladnik', 'vedouci', 'manazer']],
+    ['vydano', 'Vydáno / Zlikvidováno', 'obrazovka Blíží se expirace – označit zboží jako vydané nebo zlikvidované',
+      ['skladnik', 'vedouci', 'manazer']],
+    ['moje_ukoly', 'Moje úkoly', 'úkoly pro mě a pro „kdokoliv“ na čtečce', ['skladnik', 'vedouci', 'manazer']]
+  ] },
+  { modul: 'Expirace – řízení', opravneni: [
+    ['prehledy', 'Přehledy', 'přehled podniku (pokrytí, kontroly, pásma, FEFO) a úkoly s plněním ke čtení', ['vedouci', 'manazer']],
+    ['zaznamy', 'Záznamy a export', 'tabulka záznamů, export do Excelu, log kontrol', ['vedouci', 'manazer']],
+    ['ukoly_zadavani', 'Zadávání a rušení úkolů', 'nový úkol, zrušení úkolu', ['manazer']]
+  ] },
+  { modul: 'Správa', opravneni: [
+    ['sprava_uzivatelu', 'Správa uživatelů', 'založit uživatele, role, aktivní, reset PINu (účty adminů jen admin)', ['manazer']],
+    ['importy', 'Importy a číselník', 'import číselníku, lokací a stavu lokací; položky k doplnění', []],
+    ['nastaveni', 'Nastavení podniků', 'pásma, cíle, plánovač, příjemci reportu', []]
+  ] }
+];
+
+// Role ve sloupcích listu Opravneni (admin jen pro přehlednost – vždy TRUE, nemění se).
+const ROLE_OPRAVNENI = ['skladnik', 'vedouci', 'manazer', 'admin'];
+const CACHE_OPRAVNENI_S = 300; // změna přímo v listu se projeví nejpozději za 5 minut, ze Správy hned
 
 // Kontrolují se jen lokace v halách a policové galerii: H nebo P a hned číslice (H1, H2, P0…; ne PAL, PRIJEM).
 const LOKACE_KONTROLOVANA = /^[HP]\d/;
@@ -80,6 +110,10 @@ const LISTY = {
   Ukoly: ['id', 'podnik', 'typ', 'komu', 'lokace', 'polozka', 'termin', 'popis', 'stav', 'zadal', 'zadano', 'splneno', 'splnil',
     'hotove_lokace'],
   Nastaveni: ['podnik', 'klic', 'hodnota', 'popis'],
+  // Matice oprávnění: řádek = klíč oprávnění, sloupce rolí TRUE/FALSE (admin vždy TRUE). Doplní setup podle MODULY_OPRAVNENI.
+  Opravneni: ['klic', 'modul', 'nazev', 'skladnik', 'vedouci', 'manazer', 'admin'],
+  // Log změn ve správě (oprávnění): kdo, kdy, co.
+  Log_spravy: ['cas', 'uzivatel', 'akce', 'detail'],
   // naskladneno = DATUM z ERP (poslední naskladnění položky do lokace), mj = základní měrná jednotka (etapa 4).
   // Jen hlídané zboží (z číselníku podniku); každý import stavu nahradí předchozí import podniku.
   Import_stav_lokaci: ['podnik', 'lokace', 'cislo_polozky', 'mnozstvi', 'datum_importu', 'naskladneno', 'mj'],
@@ -104,6 +138,7 @@ const DATUMOVE_SLOUPCE = {
   Kontroly: ['cas'],
   Ukoly: ['zadano', 'splneno'],
   Import_stav_lokaci: ['datum_importu', 'naskladneno'],
+  Log_spravy: ['cas'],
   Log_chyb: ['cas']
 };
 const DATUMOVE_SLOUPCE_BEZ_CASU = {

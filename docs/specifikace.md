@@ -29,20 +29,33 @@ Dva podniky, stejné funkce, oddělená data (sloupec `podnik` v každém listu)
   - **Můj účet → Změnit PIN** (všechny role): současný PIN + nový 2×. Špatný současný PIN se počítá do zámku účtu;
     po změně se uživatel odhlásí na ostatních zařízeních.
   - **Reset PINu** (admin, manažer, menu tabulky) = smazání PINu, odemčení účtu a zrušení všech přihlášení; při dalším
-    přihlášení si uživatel nastaví nový. Manažer spravuje jen účty pod adminem (admina nezaloží, nezmění, neresetuje).
+    přihlášení si uživatel nastaví nový. Kdo není admin, spravuje jen účty pod adminem (admina nezaloží, nezmění,
+    neresetuje).
   - **Triviální PINy jsou zakázané:** všechny číslice stejné (1111) a vzestupné / sestupné řady (0123, 1234, 4321, 9876).
   - Dokud účet nemá PIN, může si ho nastavit kdokoliv, kdo vybere jeho jméno – nový uživatel / uživatel po resetu
     si má PIN nastavit hned.
   *(Upřesněno vlastníkem, verze 0.4.1.)*
-- Role:
-  - **skladník** – kontrola lokací, moje úkoly, blíží se expirace, označení Vydáno/Zlikvidováno.
-  - **vedoucí** – vše co skladník + PC část (řízení) **jen ke čtení**: přehled, záznamy (export), úkoly včetně plnění
-    („kolik je uděláno“); úkoly nezadává ani neruší.
-  - **manažer** – vše co vedoucí + zadávání a rušení úkolů + správa uživatelů (zakládání, role, aktivní, reset PINu –
-    jen účty pod adminem).
-  - **admin** – vše + Správa (uživatelé včetně adminů, nastavení, položky k doplnění) a Importy (číselník, lokace, stav lokací).
-  - Oprávnění se ověřují na serveru (úrovně: skladník 1, vedoucí 2, manažer 3, admin 4); klient jen skrývá ovládání.
-  *(Upřesněno vlastníkem 2026-11-01, etapa 4.)*
+- Role: **skladník**, **vedoucí**, **manažer**, **admin**. Co která role smí, určují **oprávnění nastavitelná
+  v aplikaci** (*Správa → Oprávnění*, jen admin; list `Opravneni`). **Admin má vždy vše** – jeho sloupec se nedá měnit.
+  Server kontroluje u každé akce oprávnění (ne pevnou roli); klient podle seznamu oprávnění jen skrývá dlaždice
+  a tlačítka. *(Upřesněno vlastníkem, verze 0.4.2.)*
+
+  | Oprávnění (klíč) | Co povoluje | Výchozí role |
+  |---|---|---|
+  | Kontrola lokací (`kontrola`) | skenování lokací, potvrzení / změny / nové zboží, fotky | skladník, vedoucí, manažer |
+  | Vydáno / Zlikvidováno (`vydano`) | Blíží se expirace – označit zboží | skladník, vedoucí, manažer |
+  | Moje úkoly (`moje_ukoly`) | úkoly na čtečce | skladník, vedoucí, manažer |
+  | Přehledy (`prehledy`) | přehled podniku, úkoly s plněním ke čtení | vedoucí, manažer |
+  | Záznamy a export (`zaznamy`) | tabulka záznamů, export .xlsx, log kontrol | vedoucí, manažer |
+  | Zadávání a rušení úkolů (`ukoly_zadavani`) | nový úkol, zrušení | manažer |
+  | Správa uživatelů (`sprava_uzivatelu`) | založit, role, aktivní, reset PINu (účty adminů jen admin) | manažer |
+  | Importy a číselník (`importy`) | importy, položky k doplnění | jen admin |
+  | Nastavení podniků (`nastaveni`) | pásma, cíle, plánovač, příjemci reportu | jen admin |
+
+  Výchozí hodnoty odpovídají dosavadním pravidlům (vedoucí si ponechává práci na čtečce). Úkoly ke čtení vidí, kdo má
+  *Přehledy* nebo *Zadávání úkolů*. Nastavovat oprávnění smí jen admin. Uložení matice se zapíše do listu `Log_spravy`
+  (kdo, kdy, co). Nový modul jen přidá své klíče oprávnění (registr `MODULY_OPRAVNENI` v `Konfigurace.gs`) –
+  list i matice se doplní samy, chybějící hodnota = výchozí z registru.
 - Data obou podniků vidí všichni přihlášení (žádné omezení po podnicích).
 
 ## 4. Datový model (Google tabulka)
@@ -87,6 +100,11 @@ splneno, splnil. Úkol je splněný, když jsou zkontrolované všechny jeho lok
 **Nastaveni** (klíč–hodnota, řádek = podnik + klíč): hranice_cervena, hranice_zluta, cil_kontrol_tyden (prázdné = bez cíle),
 report_prijemci (e-maily), planovac_dni_bez_kontroly (výchozí 60), planovac_cervene_overit_dni (30),
 planovac_max_lokaci_ukol (20), planovac_naskladneno_zapnuto (TRUE), planovac_naskladneno_dni (14), slozka_fotky_id.
+
+**Opravneni**: klic, modul, nazev, skladnik, vedouci, manazer, admin (TRUE/FALSE; řádek = oprávnění, admin vždy TRUE).
+Změna přímo v listu se projeví nejpozději za 5 minut (cache), změna ve Správě hned.
+
+**Log_spravy**: cas, uzivatel, akce, detail – změny ve správě (zatím oprávnění: kdo, kdy, co).
 
 **Import_stav_lokaci**: podnik, lokace, cislo_polozky, mnozstvi, datum_importu, naskladneno, mj. Nahrává se 1× týdně
 (export z ERP). Ukládá se **jen hlídané zboží** (položky z číselníku podniku a položky záznamů na lokacích) na lokacích
@@ -133,7 +151,7 @@ se po přihlášení nacachují, aby šlo skenovat i při slabém signálu.
 
 **Fotky:** zmenšit v prohlížeči na max. 1600 px, JPEG ~0,8; nahrát na Google Disk do složky z nastavení; URL do záznamu.
 
-## 6. PC část (vedoucí, manažer, admin) – responzivní, funguje i na mobilu
+## 6. PC část (řízení – obrazovky podle oprávnění) – responzivní, funguje i na mobilu
 1. **Přehled** (za vybraný podnik):
    - KPI: pokrytí lokací za 30 a 90 dní (% aktivních lokací s dokončenou kontrolou), kontroly tento týden (+ cíl, je-li),
      počet záznamů v červeném pásmu, expirované a stále na lokaci, zboží na skladě bez kontroly (z importu), položky k doplnění,
@@ -147,10 +165,10 @@ se po přihlášení nacachují, aby šlo skenovat i při slabém signálu.
    - Týdenní report: kdy odchází, komu, *Náhled* / *Odeslat teď*.
 2. **Úkoly**: nový úkol (komu, lokace – jednotlivé, oddělené čárkou nebo rozsah „od–do“ v rámci řady, volitelně položka,
    termín, poznámka), přehled úkolů s průběhem, zrušení úkolu, pravidla plánovače (zobrazení).
-   Zadávat a rušit smí manažer a admin; vedoucí úkoly a jejich plnění jen vidí.
+   Zadávat a rušit smí, kdo má oprávnění *Zadávání a rušení úkolů* (výchozí manažer); s *Přehledy* úkoly a plnění jen vidí.
 3. **Záznamy**: tabulka s hledáním (lokace, EAN, číslo, název), filtry (podnik, pásmo, stav), řazení,
    **export do Excelu (.xlsx)** s aktuálním filtrem; export logu kontrol za období.
-4. **Správa (admin; manažer jen uživatelé)**: uživatelé (přidat jen jméno a roli, role, aktivní, sloupec „PIN nastaven
+4. **Správa** (záložky podle oprávnění; **Oprávnění** – matice role × oprávnění se zaškrtávátky – jen admin): uživatelé (přidat jen jméno a roli, role, aktivní, sloupec „PIN nastaven
    ano/ne“, reset PINu = smazání PINu), nastavení po podnicích,
    import číselníku (xlsx/csv: EAN, číslo položky, název), import lokací, import stavu lokací, položky k doplnění (doplnit název / spárovat).
    Každý import: zvolit podnik → nahrát soubor → **náhled** (počty nových / změněných / přeskočených / chybných řádků,

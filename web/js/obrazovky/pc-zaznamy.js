@@ -2,7 +2,7 @@
 // export do Excelu (.xlsx) s aktuálním filtrem a export logu kontrol za období.
 import { volej } from '../api.js';
 import { pasmo, zbyvaDni } from '../expirace.js';
-import { cislo, datumCas, napojPrepinacPodniku, overRoli, pcRam, prepinacPodniku, ROLE_PC } from '../pc.js';
+import { cislo, datumCas, napojPrepinacPodniku, overOpravneni, pcRam, prepinacPodniku } from '../pc.js';
 import { podnikPodleKodu } from '../podniky.js';
 import { esc, toast } from '../ui.js';
 import { zvolenyPodnik } from '../uloziste.js';
@@ -23,7 +23,7 @@ let vykresleni = 0;
 let data = null;
 
 export async function zobrazPcZaznamy(koren, relace) {
-  if (!overRoli(koren, relace, 'zaznamy', ROLE_PC, 'Záznamy')) return;
+  if (!overOpravneni(koren, relace, 'zaznamy', 'Záznamy')) return;
   const cisloVykresleni = ++vykresleni;
   const podnik = zvolenyPodnik();
   const nazev = podnikPodleKodu(podnik)?.nazev || podnik;

@@ -1,6 +1,7 @@
 // Expirace – Moje úkoly (čtečka): úkoly pro mě a pro „kdokoliv“ ve zvoleném podniku, lokace podle trasy,
 // průběh x z y; Začít / pokračovat otevře kontrolu s nabídkou zbývajících lokací.
 import { volej } from '../api.js';
+import { ma } from '../opravneni.js';
 import { cekajiciDavky } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
 import { pripravSkener } from '../skener.js';
@@ -79,6 +80,7 @@ function kartaUkolu(u) {
     <div class="prog"><i style="width:${(100 * hotovo) / u.lokace.length}%"></i></div>
     <div class="hint">${hotovo} z ${u.lokace.length} lokací</div>
     ${vse ? '<div class="hint">✔ Hotovo – čeká na odeslání</div>'
-      : `<button class="btn block mt" data-zacit="${esc(u.id)}">${hotovo ? 'Pokračovat' : 'Začít'}</button>`}
+      : !ma('kontrola') ? '<div class="hint">Kontrolu lokací nemáš povolenou.</div>'
+        : `<button class="btn block mt" data-zacit="${esc(u.id)}">${hotovo ? 'Pokračovat' : 'Začít'}</button>`}
   </div>`;
 }

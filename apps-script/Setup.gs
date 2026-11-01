@@ -41,6 +41,7 @@ function setup(jmenoAdmina, pinAdmina) {
   sZamkem_(function () {
     zalozListy_();
     doplnNastaveni_();
+    doplnOpravneni_();
   });
 
   const maAdmina = nactiList_('Uzivatele').radky.some(function (u) {
