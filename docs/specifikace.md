@@ -24,8 +24,12 @@ Dva podniky, stejné funkce, oddělená data (sloupec `podnik` v každém listu)
 - Přihlášení: výběr jména ze seznamu aktivních uživatelů + **4místný PIN**. Token platí do konce dne.
 - Role:
   - **skladník** – kontrola lokací, moje úkoly, blíží se expirace, označení Vydáno/Zlikvidováno.
-  - **vedoucí**, **manažer** – vše co skladník + PC část: přehled, úkoly (zadávání), záznamy (export).
-  - **admin** – vše + Správa (uživatelé, PINy, číselník, lokace, importy, nastavení).
+  - **vedoucí** – vše co skladník + PC část (řízení) **jen ke čtení**: přehled, záznamy (export), úkoly včetně plnění
+    („kolik je uděláno“); úkoly nezadává ani neruší.
+  - **manažer** – vše co vedoucí + zadávání a rušení úkolů.
+  - **admin** – vše + Správa (uživatelé, PINy, nastavení, položky k doplnění) a Importy (číselník, lokace, stav lokací).
+  - Oprávnění se ověřují na serveru (úrovně: skladník 1, vedoucí 2, manažer 3, admin 4); klient jen skrývá ovládání.
+  *(Upřesněno vlastníkem 2026-11-01, etapa 4.)*
 - Data obou podniků vidí všichni přihlášení (žádné omezení po podnicích).
 
 ## 4. Datový model (Google tabulka)
@@ -37,11 +41,18 @@ chybne_pokusy, zamceno_do.
 
 **Polozky** (číselník): podnik, ean, cislo_polozky, nazev, aktivni, zdroj (import/rucni), k_doplneni (TRUE/FALSE).
 Jedna položka může mít víc EAN (víc řádků). Číslo položky vždy jako **text** (úvodní nuly).
+EAN a čísla položek se **porovnávají bez úvodních nul** (Excel z čísla nulu zahodí: EAN 13 → 12 číslic) – sken `0…`
+najde položku uloženou bez nuly a záznam převezme EAN z číselníku. Čísla položek mohou být i textová (např. `BZ…`).
 
 **Lokace**: podnik, kod, hala, rada, sloupec, nosnik, zona (P = policová galerie / H = hala), aktivni, k_overeni.
-Kód lokace se rozkládá podle pomlček (např. `H2-P-37-1` → hala H2, řada P, sloupec 37, nosník 1). Formát se může
-mezi podniky lišit – rozklad musí být tolerantní (co nejde rozložit, zůstane prázdné). Neznámá naskenovaná lokace
-se založí s příznakem `k_overeni`.
+Kód lokace se rozkládá podle pomlček (např. `H2-P-37-1` → hala H2, řada P, sloupec 37, nosník 1; třídílný
+`H1-AB-12` → hala H1, řada AB, sloupec 12). Formát se může mezi podniky lišit – rozklad musí být tolerantní (co nejde
+rozložit, zůstane prázdné). Rozklad se dělá vždy z kódu, ne ze sloupců importu (Excel u čísel zahazuje úvodní nuly,
+např. sloupec `07` → 7). Neznámá naskenovaná lokace se založí s příznakem `k_overeni`.
+**Kontrolují se jen lokace v halách a policové galerii: kód začíná `H` nebo `P` a hned za tím je číslice** (H1, H2, P0…;
+ne PAL, PRIJEM, BAL, RAMP). Jen ty jsou v plánovači a v pokrytí. Regálové lokace (hala-řada-sloupec(-nosník)) jsou
+aktivní, lokace H/P jiného tvaru (`H2-ZASOBNIK`, zóny se slovem) se při importu založí jako neaktivní – admin je může
+zapnout. Ostatní prefixy se při importu přeskočí, existující se vypnou. *(Upřesněno vlastníkem 2026-11-01.)*
 
 **Zaznamy** (aktuální stav; 1 řádek = jedno zboží s jednou expirací na jedné lokaci):
 id, podnik, lokace, ean, cislo_polozky, expirace (datum), expirace_text (MM/RR), pocet_ks (volitelné), stav
@@ -53,6 +64,8 @@ Duplicitní založení stejného klíče se nepovolí (aplikace nabídne ✓ u e
 **Kontroly** (log, nikdy se nemaže): id, cas, uzivatel, podnik, lokace, id_zaznamu, akce
 (`nový` / `potvrzeno` / `změna` / `není na lokaci` / `bez expiračního zboží` / `vydáno` / `zlikvidováno` / `import uzavřel`),
 pocet_ks, poznamka, id_ukolu, zapocteno (TRUE když tato akce byla první dokončená kontrola lokace toho uživatele v daném dni).
+„Poslední kontrola lokace“ (plánovač, pokrytí) se počítá jen z dokončených kontrol – ne z `import uzavřel` ani
+z Vydáno / Zlikvidováno z obrazovky Blíží se expirace.
 
 **Ukoly**: id, podnik, typ (`ruční` / `plánovač`), komu (jméno nebo `kdokoliv`), lokace (seznam kódů oddělený čárkou),
 polozka (volitelně EAN nebo číslo položky), termin, popis, stav (`otevřený` / `splněný` / `zrušený`), zadal, zadano,
@@ -60,9 +73,21 @@ splneno, splnil. Úkol je splněný, když jsou zkontrolované všechny jeho lok
 
 **Nastaveni** (klíč–hodnota, řádek = podnik + klíč): hranice_cervena, hranice_zluta, cil_kontrol_tyden (prázdné = bez cíle),
 report_prijemci (e-maily), planovac_dni_bez_kontroly (výchozí 60), planovac_cervene_overit_dni (30),
-planovac_max_lokaci_ukol (20), slozka_fotky_id.
+planovac_max_lokaci_ukol (20), planovac_naskladneno_zapnuto (TRUE), planovac_naskladneno_dni (14), slozka_fotky_id.
 
-**Import_stav_lokaci**: podnik, lokace, cislo_polozky, mnozstvi, datum_importu. Nahrává se 1× týdně (export z ERP).
+**Import_stav_lokaci**: podnik, lokace, cislo_polozky, mnozstvi, datum_importu, naskladneno, mj. Nahrává se 1× týdně
+(export z ERP). Ukládá se **jen hlídané zboží** (položky z číselníku podniku a položky záznamů na lokacích) na lokacích
+H/P, sečtené za lokaci + položku; každý import **nahradí** předchozí import podniku (list neroste).
+`naskladneno` = sloupec **DATUM** exportu = **poslední naskladnění položky do lokace** (při víc řádcích nejnovější).
+
+**Exporty z ERP** (podnik se ze souboru neurčuje – Stachema a Stavebniny DEK se exportují zvlášť, podnik volí admin
+při importu; sloupce se hledají podle názvů v hlavičce bez ohledu na velikost písmen a diakritiku):
+- *Stav na lokacích:* DATUM, BALKOD (nepoužívá se), UMISTENI → lokace, ID_POLOZKY → cislo_polozky (vždy text),
+  POL_NAZEV (doplní prázdný název v číselníku), MNOZ_ZAKL_MJ → mnozstvi (součet), ZAKL_MJ → mj.
+- *Číselník:* EAN, Číslo položky, Název položky.
+- *Lokace:* LOKACE (HALA, ŘADA, SLOUPEC, NOSNÍK se nepoužívají – rozklad z kódu).
+Import musí zvládnout desítky tisíc řádků (DEK ~30 000): soubor se čte a sčítá v prohlížeči, na server jde jen
+výsledek. *(Upřesněno vlastníkem 2026-11-01.)*
 
 ## 5. Čtečka – obrazovky a pravidla
 1. **Přihlášení** – seznam jmen, PIN klávesnice. Zapamatovat posledního uživatele na zařízení.
@@ -97,28 +122,39 @@ se po přihlášení nacachují, aby šlo skenovat i při slabém signálu.
 ## 6. PC část (vedoucí, manažer, admin) – responzivní, funguje i na mobilu
 1. **Přehled** (za vybraný podnik):
    - KPI: pokrytí lokací za 30 a 90 dní (% aktivních lokací s dokončenou kontrolou), kontroly tento týden (+ cíl, je-li),
-     počet záznamů v červeném pásmu, expirované a stále na lokaci, zboží na skladě bez kontroly (z importu), položky k doplnění.
+     počet záznamů v červeném pásmu, expirované a stále na lokaci, zboží na skladě bez kontroly (z importu), položky k doplnění,
+     lokace naskladněné po poslední kontrole, plnění otevřených úkolů (hotové lokace / všechny).
    - **Mapa pokrytí**: řádky = hala+řada, buňky = lokace (sloupce), barva podle dní od poslední kontroly
      (≤30 zelená, 31–60 světle zelená, 61–90 žlutá, >90 červená, nikdy šedá), tooltip s detailem.
    - **Kontroly po lidech a týdnech** (posledních 8 týdnů), součet proti cíli.
    - **Zboží podle pásem** + trend (počet červených po týdnech).
-   - **FEFO upozornění**: stejná položka (číslo položky) se záznamy na více lokacích nebo s více expiracemi → pořadí, odkud vychystávat.
+   - **FEFO upozornění**: stejná položka (číslo položky) se záznamy na více lokacích nebo s více expiracemi → pořadí, odkud vychystávat
+     (nejdřív nejbližší expirace, při stejné expiraci dřív naskladněné podle DATUM z importu).
    - Týdenní report: kdy odchází, komu, *Náhled* / *Odeslat teď*.
 2. **Úkoly**: nový úkol (komu, lokace – jednotlivé, oddělené čárkou nebo rozsah „od–do“ v rámci řady, volitelně položka,
    termín, poznámka), přehled úkolů s průběhem, zrušení úkolu, pravidla plánovače (zobrazení).
+   Zadávat a rušit smí manažer a admin; vedoucí úkoly a jejich plnění jen vidí.
 3. **Záznamy**: tabulka s hledáním (lokace, EAN, číslo, název), filtry (podnik, pásmo, stav), řazení,
    **export do Excelu (.xlsx)** s aktuálním filtrem; export logu kontrol za období.
 4. **Správa (jen admin)**: uživatelé (přidat, role, aktivní, reset PINu – nový PIN se zobrazí jednou), nastavení po podnicích,
    import číselníku (xlsx/csv: EAN, číslo položky, název), import lokací, import stavu lokací, položky k doplnění (doplnit název / spárovat).
+   Každý import: zvolit podnik → nahrát soubor → **náhled** (počty nových / změněných / přeskočených / chybných řádků,
+   co se uzavře, varování) → *Importovat*. U stavu lokací admin potvrdí „stav ke dni“ (čas exportu).
 
 ## 7. Automatika (časové spouštěče Apps Scriptu)
 - **Plánovač (denně 5:30)** pro každý podnik vytvoří/aktualizuje úkoly typu `plánovač` pro „kdokoliv“:
   a) aktivní lokace bez kontroly déle než `planovac_dni_bez_kontroly`;
   b) lokace se záznamem v červeném pásmu neověřeným déle než `planovac_cervene_overit_dni`;
-  c) lokace, kde podle importu leží zboží z číselníku, ale nejsou na ní žádné záznamy (zboží bez kontroly).
+  c) lokace, kde podle importu leží zboží z číselníku, ale nejsou na ní žádné záznamy (zboží bez kontroly);
+  d) **naskladněno po poslední kontrole**: lokace s hlídaným zbožím, kde `naskladneno` (DATUM z importu) je pozdější než
+  poslední dokončená kontrola lokace – zachytí nové šarže. Jen naskladnění za posledních `planovac_naskladneno_dni`
+  (výchozí 14); vypíná se `planovac_naskladneno_zapnuto`. *(Upřesněno vlastníkem 2026-11-01.)*
+  Pořadí pravidel b → d → a → c (lokace naléhavějšího pravidla mají přednost). Jen aktivní lokace H/P.
   Maximálně `planovac_max_lokaci_ukol` lokací na úkol, seřazeno podle trasy; nevytvářet duplicity s otevřenými úkoly.
-- **Zpracování importu stavu lokací** (po nahrání): záznam `Na lokaci`, jehož číslo položky na lokaci podle importu není
-  → stav `Není na lokaci`, akce `import uzavřel`; spočítat „zboží bez kontroly“; přepočítat FEFO.
+- **Zpracování importu stavu lokací** (po nahrání): záznam `Na lokaci` na lokaci H/P, jehož číslo položky na lokaci
+  podle importu není → stav `Není na lokaci`, akce `import uzavřel`; **neuzavírat** záznamy založené, ověřené nebo
+  změněné po čase exportu („stav ke dni“). Chybějící lokace H/P z exportu se založí. Spočítat „zboží bez kontroly“;
+  přepočítat FEFO.
 - **Týdenní report (pondělí 7:00)** pro každý podnik e-mail příjemcům z nastavení: souhrn + příloha xlsx se záznamy
   v červeném pásmu a expirovanými (lokace, číslo, název, EAN, expirace, zbývá dní, ks, naposledy ověřeno).
 

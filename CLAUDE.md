@@ -26,6 +26,9 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
 - **Repo je veřejné.** Nikdy do něj nedávej hesla, PINy, tokeny, e-mailové adresy, skutečná data ze skladu,
   jména zaměstnanců ani ID tabulky/složek. Konfigurace s citlivými hodnotami patří do listu `Nastaveni`
   nebo do Script Properties. URL webové aplikace Apps Scriptu ve `web/config.js` je v pořádku (bez PINu je k ničemu).
+  Vzorové exporty z ERP vlastník drží mimo repo – do repa z nich nic nekopíruj (ani čísla položek, EAN, kódy lokací
+  či názvy). Testovací soubory jen se **smyšlenými** hodnotami a jen v `docs/testovaci-data/` (jediná výjimka
+  z `*.xlsx` / `*.csv` v `.gitignore`).
 - **UI celé česky**, srozumitelně pro skladníky. Velká tlačítka (ovládání v rukavicích), vysoký kontrast, mobil na prvním místě.
 - **Skenování:** řídí se závaznými pravidly v sekci *Skenování na čtečkách Urovo* níže.
 - Komunikace frontend → Apps Script: `fetch` POST s `Content-Type: text/plain` (kvůli CORS bez preflightu), tělo JSON
@@ -41,6 +44,25 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
 - Po každé etapě: aktualizuj `README.md` (jak nasadit / co je hotové) a `docs/CHANGELOG.md`, commitni s popisným
   českým commitem. Push jen se souhlasem vlastníka.
 - Když něco ve specifikaci chybí nebo si odporuje, **zeptej se**, nevymýšlej.
+
+## Data a oprávnění (závazné – rozhodnutí vlastníka z etapy 4, 2026-11-01)
+1. **Role v řízení:** vedoucí jen čte (přehled, záznamy, úkoly s plněním); zadávat a rušit úkoly smí manažer a admin;
+   Správa a Importy jen admin. Každou novou akci API zařaď do `mapaAkci_()` s minimální rolí – **oprávnění vždy
+   ověřuje server** (`ROLE_UROVEN`: skladník 1, vedoucí 2, manažer 3, admin 4), klient jen skrývá ovládání.
+2. **Kontrolují se jen lokace H nebo P s číslicí** (`LOKACE_KONTROLOVANA` = `/^[HP]\d/` – H1, P0…; ne PAL, PRIJEM,
+   BAL, RAMP). Jen ty patří do plánovače a pokrytí (`mapaHlidanychLokaci_`). Klient importů má stejný regulár –
+   při změně uprav obě místa.
+3. **Podnik se ze souboru neurčuje** – Stachema a Stavebniny DEK mají oddělené exporty, podnik volí admin při importu.
+4. **DATUM v exportu stavu = poslední naskladnění do lokace** (`Import_stav_lokaci.naskladneno`); používá se ve FEFO
+   a v pravidle plánovače d). Import stavu ukládá jen hlídané zboží a vždy nahradí předchozí import podniku.
+5. **Excel zahazuje úvodní nuly:** EAN a čísla položek porovnávej přes `klicEan_` / `klicCisla_` (server)
+   a `klicEan` / `polozkaPodleEan` (klient), ne přes `===`. Kódy čti z buněk jako text (`hodnotaNaText`),
+   rozklad lokace dělej z kódu, ne ze sloupců SLOUPEC / NOSNÍK. V tabulce drž kódy jako text (`TEXTOVE_SLOUPCE`).
+6. **Velké objemy:** import musí zvládnout desítky tisíc řádků (DEK ~30 000) – čti a sčítej v prohlížeči, na server
+   posílej jen výsledek; zapisuj hromadně (`zapisRadkyHromadne_`, `nahradRadkyPodniku_`), ne po řádcích.
+   Cache Apps Scriptu pojme max. 100 kB na klíč (větší hodnoty komprimuj).
+7. Import má vždy **náhled** (nic nezapíše) a teprve pak potvrzení; uzavření zboží importem (`import uzavřel`)
+   nesmí zavřít záznam založený / ověřený / změněný po „stavu ke dni“.
 
 ## Skenování na čtečkách Urovo (závazné – ověřeno na Urovo DT66, verze 0.2.3)
 Hardwarový skener posílá kód **přes IME (commitText)**, ne jako stisky kláves. Každé z pravidel níže vzniklo z chyby,
