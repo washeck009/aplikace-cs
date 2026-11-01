@@ -1,5 +1,6 @@
-// Řízení – Správa (jen admin, kap. 6.4): uživatelé (přidat, role, aktivní, reset PINu – nový PIN se zobrazí jednou),
-// nastavení po podnicích, položky k doplnění (doplnit název / spárovat s číslem položky). Importy mají vlastní obrazovku.
+// Řízení – Správa (kap. 6.4): uživatelé (admin a manažer – přidat jen jméno a roli, role, aktivní, reset PINu; PIN si
+// každý nastaví sám), nastavení po podnicích a položky k doplnění (jen admin). Importy mají vlastní obrazovku.
+// Manažer spravuje jen účty pod adminem (hlídá i server).
 import { volej } from '../api.js';
 import { datumCas, napojPrepinacPodniku, overRoli, pcRam, prepinacPodniku } from '../pc.js';
 import { NAZVY_ROLI, podnikPodleKodu } from '../podniky.js';
@@ -13,11 +14,14 @@ let zalozka = 'uzivatele';
 let vykresleni = 0;
 
 export async function zobrazPcSprava(koren, relace) {
-  if (!overRoli(koren, relace, 'sprava', ['admin'], 'Správa')) return;
+  if (!overRoli(koren, relace, 'sprava', ['manazer', 'admin'], 'Správa')) return;
   const cisloVykresleni = ++vykresleni;
   const podnik = zvolenyPodnik();
+  // Manažer vidí jen uživatele; nastavení a položky k doplnění jsou jen pro admina.
+  const zalozky = relace.role === 'admin' ? ZALOZKY : ZALOZKY.slice(0, 1);
+  if (!zalozky.some(([k]) => k === zalozka)) zalozka = 'uzivatele';
   pcRam(koren, relace, 'sprava', `<h1>Správa</h1>
-    <div class="tabs">${ZALOZKY.map(([k, n]) => `<button class="chip${k === zalozka ? ' on' : ''}" data-zalozka="${k}">${n}</button>`).join('')}</div>
+    <div class="tabs">${zalozky.map(([k, n]) => `<button class="chip${k === zalozka ? ' on' : ''}" data-zalozka="${k}">${n}</button>`).join('')}</div>
     ${zalozka === 'uzivatele' ? '' : prepinacPodniku(podnik)}
     <div id="sObsah"><p class="hint">Načítám…</p></div>`, zalozka === 'uzivatele' ? null : podnik);
   const znovu = () => zobrazPcSprava(koren, relace);
@@ -37,47 +41,48 @@ export async function zobrazPcSprava(koren, relace) {
   }
 }
 
-/** Dialog s novým PINem – ukáže se jen jednou, server ho nikde neuchovává. */
-function ukazPin(jmeno, pin) {
-  return dialog({
-    titulek: `PIN pro ${jmeno}`,
-    html: `<div class="pin-jednou">${esc(pin)}</div>
-      <p class="hint">Sděl ho uživateli osobně. Po zavření tohoto okna už ho nikde neuvidíš (v tabulce je jen jeho otisk).</p>`,
-    tlacitka: [{ text: 'Mám ho, zavřít', hodnota: true }]
-  });
-}
-
-const vyberRole = (role, attr = '') => `<select ${attr}>${ROLE.map((r) =>
+const vyberRole = (role, nabidka, attr = '') => `<select ${attr}>${nabidka.map((r) =>
   `<option value="${r}"${r === role ? ' selected' : ''}>${NAZVY_ROLI[r]}</option>`).join('')}</select>`;
 
 async function uzivatele(obsah, aktualni, znovu) {
   const data = await volej('sprava.uzivatele');
   if (!aktualni()) return;
+  const nabidka = data.role_k_prirazeni || ROLE;
+  const radek = (u) => {
+    const lze = u.muze_spravovat !== false;
+    return `<tr data-id="${esc(u.id)}">
+      <td><b>${esc(u.jmeno)}</b>${u.id === data.ja ? ' <span class="hint">(ty)</span>' : ''}
+        ${u.zamceno_do ? `<div class="chyba-text">zamčeno do ${datumCas(u.zamceno_do)}</div>` : ''}</td>
+      <td>${lze ? vyberRole(u.role, nabidka.includes(u.role) ? nabidka : [...nabidka, u.role], 'data-role') : esc(NAZVY_ROLI[u.role] || u.role)}</td>
+      <td><input type="checkbox" data-aktivni${u.aktivni ? ' checked' : ''}${lze ? '' : ' disabled'}></td>
+      <td>${u.pin_nastaven ? '<span class="pill g">ano</span>' : '<span class="pill y">ne – nastaví si</span>'}</td>
+      <td class="akce">${lze ? `<button class="chip" data-ulozit hidden>Uložit</button>
+        ${u.pin_nastaven || u.zamceno_do ? `<button class="chip" data-reset>Resetovat PIN${u.zamceno_do ? ' + odemknout' : ''}</button>` : ''}` : ''}</td></tr>`;
+  };
   obsah.innerHTML = `<div class="grid2">
     <div class="panel"><h2>Uživatelé</h2><div class="tblw"><table>
-      <tr><th>Jméno</th><th>Role</th><th>Aktivní</th><th></th></tr>
-      ${data.uzivatele.map((u) => `<tr data-id="${esc(u.id)}">
-        <td><b>${esc(u.jmeno)}</b>${u.id === data.ja ? ' <span class="hint">(ty)</span>' : ''}
-          ${u.zamceno_do ? `<div class="chyba-text">zamčeno do ${datumCas(u.zamceno_do)}</div>` : ''}</td>
-        <td>${vyberRole(u.role, 'data-role')}</td>
-        <td><input type="checkbox" data-aktivni${u.aktivni ? ' checked' : ''}></td>
-        <td class="akce"><button class="chip" data-ulozit hidden>Uložit</button>
-          <button class="chip" data-pin>${u.zamceno_do ? 'Odemknout + nový PIN' : 'Nový PIN'}</button></td></tr>`).join('')}
+      <tr><th>Jméno</th><th>Role</th><th>Aktivní</th><th>PIN nastaven</th><th></th></tr>
+      ${data.uzivatele.map(radek).join('')}
     </table></div>
-    <div class="hint">Vypnutý uživatel se nepřihlásí a odhlásí se ze všech zařízení. Jméno se nemění (vede se podle něj historie).</div></div>
+    <div class="hint">PIN si každý nastavuje sám: nový uživatel a uživatel po resetu při příštím přihlášení (vybere jméno →
+      Nastav si PIN), změna v Můj účet. Reset PINu smaže PIN a odhlásí uživatele ze všech zařízení.
+      Vypnutý uživatel se nepřihlásí. Jméno se nemění (vede se podle něj historie).</div></div>
     <div class="panel"><h2>Přidat uživatele</h2>
       <form id="novyUzivatel" autocomplete="off">
         <div class="field"><label for="nJmeno">Jméno (jak se bude zobrazovat)</label><input id="nJmeno" name="jmeno" required maxlength="60"></div>
-        <div class="field"><label for="nRole">Role</label>${vyberRole('skladnik', 'id="nRole" name="role"')}</div>
+        <div class="field"><label for="nRole">Role</label>${vyberRole('skladnik', nabidka, 'id="nRole" name="role"')}</div>
         <div class="chyba" id="nChyba" hidden></div>
-        <button class="btn" type="submit">Přidat a vygenerovat PIN</button>
+        <button class="btn" type="submit">Přidat uživatele</button>
       </form>
-      <div class="hint mt">Skladník: čtečka. Vedoucí: navíc přehled a záznamy, úkoly jen čte. Manažer: navíc zadává úkoly.
-        Admin: vše včetně správy a importů.</div></div>
+      <div class="hint mt">Bez PINu – uživatel si ho nastaví při prvním přihlášení. Ať to udělá hned, dokud účet nemá PIN,
+        může si ho nastavit kdokoliv, kdo vybere jeho jméno.</div>
+      <div class="hint mt">Skladník: čtečka. Vedoucí: navíc přehled a záznamy, úkoly jen čte. Manažer: navíc zadává úkoly
+        a spravuje uživatele (kromě adminů). Admin: vše včetně nastavení a importů.</div></div>
   </div>`;
 
   obsah.querySelectorAll('tr[data-id]').forEach((tr) => {
     const ulozit = tr.querySelector('[data-ulozit]');
+    if (!ulozit) return;
     tr.querySelectorAll('[data-role], [data-aktivni]').forEach((el) => el.addEventListener('change', () => { ulozit.hidden = false; }));
     ulozit.addEventListener('click', async () => {
       try {
@@ -90,17 +95,17 @@ async function uzivatele(obsah, aktualni, znovu) {
         toast(e.message);
       }
     });
-    tr.querySelector('[data-pin]').addEventListener('click', async () => {
+    tr.querySelector('[data-reset]')?.addEventListener('click', async () => {
       const jmeno = tr.querySelector('b').textContent;
       const ano = await dialog({
-        titulek: `Nový PIN pro ${jmeno}?`,
-        text: 'Starý PIN přestane platit, účet se odemkne a uživatel se odhlásí ze všech zařízení.',
-        tlacitka: [{ text: 'Zpět', hodnota: false, trida: 'gry' }, { text: 'Vygenerovat PIN', hodnota: true }]
+        titulek: `Resetovat PIN – ${jmeno}?`,
+        text: 'PIN se smaže, účet se odemkne a uživatel se odhlásí ze všech zařízení. Při dalším přihlášení si nastaví nový PIN sám.',
+        tlacitka: [{ text: 'Zpět', hodnota: false, trida: 'gry' }, { text: 'Resetovat PIN', hodnota: true, trida: 'red' }]
       });
       if (!ano) return;
       try {
-        const v = await volej('sprava.uzivatel.pin', { id: tr.dataset.id });
-        await ukazPin(v.jmeno, v.pin);
+        await volej('sprava.uzivatel.reset', { id: tr.dataset.id });
+        toast(`PIN uživatele ${jmeno} je smazaný – nový si nastaví při přihlášení.`);
         znovu();
       } catch (e) {
         toast(e.message);
@@ -116,7 +121,7 @@ async function uzivatele(obsah, aktualni, znovu) {
     try {
       const f = Object.fromEntries(new FormData(formular)); // formular.role by vrátil atribut ARIA, ne pole
       const v = await volej('sprava.uzivatel.uloz', { jmeno: f.jmeno, role: f.role, aktivni: true });
-      await ukazPin(v.jmeno, v.pin);
+      toast(`${v.jmeno} přidán – PIN si nastaví při prvním přihlášení.`);
       znovu();
     } catch (chybaApi) {
       chyba.textContent = chybaApi.message;

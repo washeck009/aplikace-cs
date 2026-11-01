@@ -13,7 +13,8 @@ const MENU = [
   ['prehled', '📊 Přehled', '#/pc/prehled'],
   ['ukoly', '📋 Úkoly', '#/pc/ukoly'],
   ['zaznamy', '🗂 Záznamy', '#/pc/zaznamy'],
-  ['sprava', '⚙ Správa', '#/pc/sprava', ['admin']],
+  ['sprava', '⚙ Správa', '#/pc/sprava', ['manazer', 'admin']], // manažer jen uživatele
+
   ['importy', '⇪ Importy', '#/pc/importy', ['admin']]
 ];
 
@@ -31,7 +32,7 @@ export function pcRam(koren, relace, aktivni, obsah, podnik) {
         `<button class="${klic === aktivni ? 'on' : ''}" data-cil="${cil}">${popisek}</button>`).join('')}
       <button data-rozcestnik>← Rozcestník</button>
       <div class="side-pata">Přihlášen: ${esc(relace.jmeno)} (${esc(NAZVY_ROLI[relace.role] || relace.role)})
-        <button class="odkaz" data-odhlasit>Odhlásit</button></div>
+        <button class="odkaz" data-ucet>Můj účet</button> · <button class="odkaz" data-odhlasit>Odhlásit</button></div>
     </nav>
     <div class="pc-sloupec">
       <div class="pc-pruh"><b>Expirace – řízení</b>${p ? `<span>${esc(p.nazev)}</span>` : ''}</div>
@@ -41,6 +42,7 @@ export function pcRam(koren, relace, aktivni, obsah, podnik) {
   koren.querySelectorAll('.side [data-cil]').forEach((b) => b.addEventListener('click', () => prejdi(b.dataset.cil)));
   koren.querySelector('[data-rozcestnik]').addEventListener('click', () => prejdi('#/'));
   koren.querySelector('[data-odhlasit]').addEventListener('click', odhlasit);
+  koren.querySelector('[data-ucet]').addEventListener('click', () => prejdi('#/ucet'));
 }
 
 /** Přepínač podniku (záložky) – HTML. */
@@ -58,8 +60,8 @@ export function napojPrepinacPodniku(koren, znovu) {
 /** Obrazovka jen pro některé role – jinak hláška v rámu. Vrátí true, když uživatel smí dál. */
 export function overRoli(koren, relace, aktivni, role, nadpis) {
   if (role.includes(relace.role)) return true;
-  pcRam(koren, relace, aktivni, `<h1>${esc(nadpis)}</h1><div class="chyba">Tuto část vidí jen ${role.length === 1 ? 'admin'
-    : 'vedoucí, manažer a správce'}.</div>`);
+  const kdo = role.length === 1 ? 'admin' : role.includes('vedouci') ? 'vedoucí, manažer a správce' : 'manažer a správce';
+  pcRam(koren, relace, aktivni, `<h1>${esc(nadpis)}</h1><div class="chyba">Tuto část vidí jen ${kdo}.</div>`);
   return false;
 }
 

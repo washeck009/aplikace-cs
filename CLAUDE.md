@@ -36,6 +36,9 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
 - **Bezpečnost:** PIN se ukládá jen jako hash se solí (SHA-256, `Utilities.computeDigest`). Po přihlášení dostane klient
   náhodný token s platností do konce dne (CacheService / PropertiesService). Každá akce ověřuje token a roli na serveru.
   Po 5 chybných PINech zámek účtu na 10 minut.
+  **PIN si nastavuje jen sám uživatel** (první přihlášení „Nastav si PIN“, Můj účet → Změnit PIN). Uživatelé se zakládají
+  jen se jménem a rolí, reset PINu = smazání PINu. Nikde negeneruj, nezobrazuj ani neposílej PIN jiným lidem
+  a triviální PINy (stejné číslice, řady) odmítej na serveru (`overNovyPin_`) i v klientu (`web/js/pin.js`).
 - Zápisy do tabulky pod `LockService`. Log `Kontroly` se **nikdy nemaže**, záznamy se jen mění/uzavírají se stopou kdo/kdy.
 - Výpadek signálu: záznamy se ukládají do fronty v IndexedDB a odesílají se na pozadí; fronta musí být vidět.
 - Kód piš jednoduše a čitelně, s krátkými komentáři česky. Žádné frameworky bez důvodu; knihovny jen z CDN s pevnou verzí.
@@ -47,7 +50,8 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
 
 ## Data a oprávnění (závazné – rozhodnutí vlastníka z etapy 4, 2026-11-01)
 1. **Role v řízení:** vedoucí jen čte (přehled, záznamy, úkoly s plněním); zadávat a rušit úkoly smí manažer a admin;
-   Správa a Importy jen admin. Každou novou akci API zařaď do `mapaAkci_()` s minimální rolí – **oprávnění vždy
+   uživatele spravuje manažer (jen účty pod adminem – `muzeSpravovat_`) a admin; nastavení, položky k doplnění
+   a Importy jen admin. Každou novou akci API zařaď do `mapaAkci_()` s minimální rolí – **oprávnění vždy
    ověřuje server** (`ROLE_UROVEN`: skladník 1, vedoucí 2, manažer 3, admin 4), klient jen skrývá ovládání.
 2. **Kontrolují se jen lokace H nebo P s číslicí** (`LOKACE_KONTROLOVANA` = `/^[HP]\d/` – H1, P0…; ne PAL, PRIJEM,
    BAL, RAMP). Jen ty patří do plánovače a pokrytí (`mapaHlidanychLokaci_`). Klient importů má stejný regulár –

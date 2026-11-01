@@ -16,9 +16,11 @@ import { zobrazPcPrehled } from './obrazovky/pc-prehled.js';
 import { zobrazPcZaznamy } from './obrazovky/pc-zaznamy.js';
 import { zobrazPcSprava } from './obrazovky/pc-sprava.js';
 import { zobrazPcImporty } from './obrazovky/pc-importy.js';
+import { zobrazUcet } from './obrazovky/ucet.js';
 
 const OBRAZOVKY = {
   '#/': zobrazRozcestnik,
+  '#/ucet': zobrazUcet,
   '#/expirace': zobrazExpiraceDomu,
   '#/expirace/kontrola': zobrazKontroluLokace,
   '#/expirace/ukoly': zobrazMojeUkoly,

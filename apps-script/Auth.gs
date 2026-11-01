@@ -20,6 +20,56 @@ function platnyPin_(pin) {
   return /^\d{4}$/.test(String(pin));
 }
 
+/** Triviální PIN: všechny číslice stejné (1111) nebo vzestupná / sestupná řada (0123, 1234, 4321, 9876). */
+function jeTrivialniPin_(pin) {
+  const c = String(pin).split('').map(Number);
+  const rada = function (krok) { return c.every(function (x, i) { return i === 0 || x - c[i - 1] === krok; }); };
+  return rada(0) || rada(1) || rada(-1);
+}
+
+/** Kontrola PINu, který si uživatel volí sám (nastavení, změna). */
+function overNovyPin_(pin) {
+  if (!platnyPin_(pin)) throw chyba_('PIN musí mít přesně 4 číslice.');
+  if (jeTrivialniPin_(pin)) {
+    throw chyba_('Tenhle PIN se dá snadno uhodnout (stejné číslice nebo řada jako 1234 / 4321). Zvol jiný.', 'SLABY_PIN');
+  }
+}
+
+/** Má uživatel nastavený PIN? Bez PINu si ho nastaví sám při prvním přihlášení. */
+function maPin_(u) {
+  return !!text_(u.pin_hash) && !!text_(u.pin_salt);
+}
+
+/**
+ * Ověří PIN uživatele (volat pod zámkem). Při chybě započítá pokus a po ZAMEK_POKUSU zamkne účet;
+ * vyhodí chybu pro uživatele. Při úspěchu vynuluje pokusy.
+ */
+function overPinUzivatele_(u, pin) {
+  const ted = new Date();
+  if (u.zamceno_do instanceof Date && u.zamceno_do > ted) {
+    throw chyba_('Účet je zamčený do ' + cas_(u.zamceno_do) + ' (příliš mnoho chybných PINů).', 'ZAMCENO');
+  }
+  if (hashPinu_(String(pin), text_(u.pin_salt)) !== text_(u.pin_hash)) {
+    const pokusy = (Number(u.chybne_pokusy) || 0) + 1;
+    if (pokusy >= ZAMEK_POKUSU) {
+      const zamekDo = new Date(ted.getTime() + ZAMEK_MINUT * 60000);
+      upravRadek_('Uzivatele', u._radek, { chybne_pokusy: 0, zamceno_do: zamekDo });
+      throw chyba_('Špatný PIN. Účet je zamčený na ' + ZAMEK_MINUT + ' minut (do ' + cas_(zamekDo) + ').', 'ZAMCENO');
+    }
+    upravRadek_('Uzivatele', u._radek, { chybne_pokusy: pokusy });
+    throw chyba_('Špatný PIN. Zbývá pokusů: ' + (ZAMEK_POKUSU - pokusy) + '.', 'PIN');
+  }
+  if (u.chybne_pokusy || u.zamceno_do) upravRadek_('Uzivatele', u._radek, { chybne_pokusy: 0, zamceno_do: '' });
+}
+
+/** Uloží nový PIN (hash se solí) a odemkne účet. */
+function ulozPin_(u, pin) {
+  const sul = novaSul_();
+  u.pin_hash = hashPinu_(String(pin), sul);
+  u.pin_salt = sul;
+  upravRadek_('Uzivatele', u._radek, { pin_hash: u.pin_hash, pin_salt: sul, chybne_pokusy: 0, zamceno_do: '' });
+}
+
 /** Dnešní půlnoc (konec dne v časovém pásmu skriptu). */
 function konecDne_() {
   const d = new Date();
@@ -151,26 +201,63 @@ function akceLogin_(data) {
   return sZamkem_(function () {
     const u = najdiUzivatele_(jmeno);
     if (!u) throw chyba_('Neplatné jméno nebo PIN.', 'PIN');
-
-    const ted = new Date();
-    if (u.zamceno_do instanceof Date && u.zamceno_do > ted) {
-      throw chyba_('Účet je zamčený do ' + cas_(u.zamceno_do) + ' (příliš mnoho chybných PINů).', 'ZAMCENO');
-    }
-
-    if (hashPinu_(pin, text_(u.pin_salt)) !== text_(u.pin_hash)) {
-      const pokusy = (Number(u.chybne_pokusy) || 0) + 1;
-      if (pokusy >= ZAMEK_POKUSU) {
-        const zamekDo = new Date(ted.getTime() + ZAMEK_MINUT * 60000);
-        upravRadek_('Uzivatele', u._radek, { chybne_pokusy: 0, zamceno_do: zamekDo });
-        throw chyba_('Špatný PIN. Účet je zamčený na ' + ZAMEK_MINUT + ' minut (do ' + cas_(zamekDo) + ').', 'ZAMCENO');
-      }
-      upravRadek_('Uzivatele', u._radek, { chybne_pokusy: pokusy });
-      throw chyba_('Špatný PIN. Zbývá pokusů: ' + (ZAMEK_POKUSU - pokusy) + '.', 'PIN');
-    }
-
-    if (u.chybne_pokusy || u.zamceno_do) upravRadek_('Uzivatele', u._radek, { chybne_pokusy: 0, zamceno_do: '' });
+    if (!maPin_(u)) throw chyba_('Ještě nemáš nastavený PIN – nastav si ho.', 'BEZ_PINU');
+    overPinUzivatele_(u, pin);
     return vytvorToken_(u);
   });
+}
+
+/** Po výběru jména: má uživatel PIN? Bez PINu ukáže aplikace „Nastav si PIN“. */
+function akceLoginInfo_(data) {
+  const u = najdiUzivatele_(data.jmeno);
+  if (!u) throw chyba_('Uživatel není v seznamu (nebo je vypnutý).');
+  return { jmeno: text_(u.jmeno), pin_nastaven: maPin_(u) };
+}
+
+/**
+ * {jmeno, pin} – první nastavení PINu uživatelem bez PINu (nový uživatel nebo po resetu). Jen když PIN nemá;
+ * pak rovnou přihlásí. Triviální PINy (1111, 1234, 4321…) odmítne.
+ */
+function akcePinNastav_(data) {
+  const pin = String(data.pin || '');
+  overNovyPin_(pin);
+  return sZamkem_(function () {
+    const u = najdiUzivatele_(data.jmeno);
+    if (!u) throw chyba_('Uživatel není v seznamu (nebo je vypnutý).');
+    if (maPin_(u)) throw chyba_('PIN už je nastavený. Přihlas se jím, nebo požádej vedoucího o reset PINu.', 'PIN_NASTAVEN');
+    ulozPin_(u, pin);
+    zrusTokenyUzivatele_(text_(u.id));
+    return vytvorToken_(u);
+  });
+}
+
+/**
+ * Můj účet – změna PINu (všechny role): {stary, novy}. Špatný starý PIN se počítá do zámku účtu jako při přihlášení.
+ * Ostatní přihlášení uživatele se zruší; vrátí nový token pro toto zařízení.
+ */
+function akceUcetPin_(data, uzivatel) {
+  const novy = String(data.novy || '');
+  overNovyPin_(novy);
+  if (String(data.stary || '') === novy) throw chyba_('Nový PIN je stejný jako současný.');
+  return sZamkem_(function () {
+    const u = nactiList_('Uzivatele').radky.filter(function (r) { return text_(r.id) === uzivatel.id; })[0];
+    if (!u || !maPin_(u)) throw chyba_('Účet nemá PIN – odhlas se a nastav si ho při přihlášení.');
+    overPinUzivatele_(u, String(data.stary || ''));
+    ulozPin_(u, novy);
+    zrusTokenyUzivatele_(text_(u.id));
+    return vytvorToken_(u);
+  });
+}
+
+/**
+ * Reset PINu (Správa nebo menu tabulky): smaže PIN, odemkne účet a odhlásí uživatele ze všech zařízení.
+ * Při dalším přihlášení si uživatel nastaví nový PIN sám. Volat pod zámkem.
+ */
+function resetujPinUzivatele_(u) {
+  u.pin_hash = '';
+  u.pin_salt = '';
+  upravRadek_('Uzivatele', u._radek, { pin_hash: '', pin_salt: '', chybne_pokusy: 0, zamceno_do: '' });
+  zrusTokenyUzivatele_(text_(u.id));
 }
 
 function akceLogout_(data, uzivatel) {

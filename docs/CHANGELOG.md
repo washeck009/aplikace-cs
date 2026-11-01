@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.1 – 2026-11-01 – Vlastní PIN uživatele
+
+### Změněno
+- **Uživatel se zakládá jen se jménem a rolí, bez PINu** – ve Správě i v menu tabulky (*Přidat uživatele*); první admin
+  ze setupu také. Žádné generované PINy ani aktivační kódy.
+- **Přihlášení:** uživatel bez PINu po výběru jména uvidí *Nastav si PIN* (nový PIN 2×) → uloží se hash se solí →
+  přihlášen (`login.info`, `pin.nastav`). Přihlášení účtu bez PINu vrátí `BEZ_PINU` a aplikace přepne na nastavení.
+- **Reset PINu** (Správa – admin a manažer; menu tabulky *Resetovat PIN / odemknout uživatele*) PIN smaže, odemkne účet
+  a zruší všechna přihlášení; nový PIN si uživatel nastaví sám. Dřívější „Nový PIN“ (vygenerovaný) je pryč.
+- **Správa uživatelů i pro manažera** – jen účty pod adminem (admina nezaloží, nezmění, neresetuje; roli admin nepřidělí).
+  Nastavení, položky k doplnění a importy dál jen admin.
+
+### Přidáno
+- **Můj účet** (rozcestník i řízení) → *Změnit PIN*: současný PIN + nový 2× (`ucet.pin`). Špatný současný PIN se počítá
+  do zámku účtu; po změně se ostatní zařízení odhlásí a toto dostane nové přihlášení.
+- **Zákaz triviálních PINů** (server `overNovyPin_` i klient `web/js/pin.js`): stejné číslice, vzestupné / sestupné řady.
+- Správa: sloupec **PIN nastaven ano / ne**.
+
 ## 0.4.0 – 2026-11-01 – Etapa 4: Řízení – přehled, záznamy, správa, importy
 
 ### Přidáno

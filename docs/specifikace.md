@@ -22,12 +22,25 @@ Dva podniky, stejné funkce, oddělená data (sloupec `podnik` v každém listu)
 
 ## 3. Role a přihlášení
 - Přihlášení: výběr jména ze seznamu aktivních uživatelů + **4místný PIN**. Token platí do konce dne.
+- **PIN si každý nastavuje sám** (žádné aktivační kódy, správa PIN nikdy nevidí ani nezadává):
+  - Uživatel se zakládá **jen se jménem a rolí, bez PINu** (Správa v aplikaci, menu tabulky, hromadné založení).
+  - Uživatel bez PINu (nový nebo po resetu): po výběru jména se místo zadání PINu ukáže **„Nastav si PIN“**
+    (nový PIN 2×) → uloží se hash se solí → rovnou přihlášen.
+  - **Můj účet → Změnit PIN** (všechny role): současný PIN + nový 2×. Špatný současný PIN se počítá do zámku účtu;
+    po změně se uživatel odhlásí na ostatních zařízeních.
+  - **Reset PINu** (admin, manažer, menu tabulky) = smazání PINu, odemčení účtu a zrušení všech přihlášení; při dalším
+    přihlášení si uživatel nastaví nový. Manažer spravuje jen účty pod adminem (admina nezaloží, nezmění, neresetuje).
+  - **Triviální PINy jsou zakázané:** všechny číslice stejné (1111) a vzestupné / sestupné řady (0123, 1234, 4321, 9876).
+  - Dokud účet nemá PIN, může si ho nastavit kdokoliv, kdo vybere jeho jméno – nový uživatel / uživatel po resetu
+    si má PIN nastavit hned.
+  *(Upřesněno vlastníkem, verze 0.4.1.)*
 - Role:
   - **skladník** – kontrola lokací, moje úkoly, blíží se expirace, označení Vydáno/Zlikvidováno.
   - **vedoucí** – vše co skladník + PC část (řízení) **jen ke čtení**: přehled, záznamy (export), úkoly včetně plnění
     („kolik je uděláno“); úkoly nezadává ani neruší.
-  - **manažer** – vše co vedoucí + zadávání a rušení úkolů.
-  - **admin** – vše + Správa (uživatelé, PINy, nastavení, položky k doplnění) a Importy (číselník, lokace, stav lokací).
+  - **manažer** – vše co vedoucí + zadávání a rušení úkolů + správa uživatelů (zakládání, role, aktivní, reset PINu –
+    jen účty pod adminem).
+  - **admin** – vše + Správa (uživatelé včetně adminů, nastavení, položky k doplnění) a Importy (číselník, lokace, stav lokací).
   - Oprávnění se ověřují na serveru (úrovně: skladník 1, vedoucí 2, manažer 3, admin 4); klient jen skrývá ovládání.
   *(Upřesněno vlastníkem 2026-11-01, etapa 4.)*
 - Data obou podniků vidí všichni přihlášení (žádné omezení po podnicích).
@@ -90,7 +103,8 @@ Import musí zvládnout desítky tisíc řádků (DEK ~30 000): soubor se čte a
 výsledek. *(Upřesněno vlastníkem 2026-11-01.)*
 
 ## 5. Čtečka – obrazovky a pravidla
-1. **Přihlášení** – seznam jmen, PIN klávesnice. Zapamatovat posledního uživatele na zařízení.
+1. **Přihlášení** – seznam jmen, PIN klávesnice (uživatel bez PINu: „Nastav si PIN“). Zapamatovat posledního
+   uživatele na zařízení. Z rozcestníku **Můj účet** (změna PINu).
 2. **Domů** – přepínač podniku (pamatuje si poslední), dlaždice *Kontrola lokace*, *Moje úkoly (počet)*,
    *Blíží se expirace (počet červených + expirovaných)*, počet dnes započtených lokací.
 3. **Kontrola lokace**
@@ -136,7 +150,8 @@ se po přihlášení nacachují, aby šlo skenovat i při slabém signálu.
    Zadávat a rušit smí manažer a admin; vedoucí úkoly a jejich plnění jen vidí.
 3. **Záznamy**: tabulka s hledáním (lokace, EAN, číslo, název), filtry (podnik, pásmo, stav), řazení,
    **export do Excelu (.xlsx)** s aktuálním filtrem; export logu kontrol za období.
-4. **Správa (jen admin)**: uživatelé (přidat, role, aktivní, reset PINu – nový PIN se zobrazí jednou), nastavení po podnicích,
+4. **Správa (admin; manažer jen uživatelé)**: uživatelé (přidat jen jméno a roli, role, aktivní, sloupec „PIN nastaven
+   ano/ne“, reset PINu = smazání PINu), nastavení po podnicích,
    import číselníku (xlsx/csv: EAN, číslo položky, název), import lokací, import stavu lokací, položky k doplnění (doplnit název / spárovat).
    Každý import: zvolit podnik → nahrát soubor → **náhled** (počty nových / změněných / přeskočených / chybných řádků,
    co se uzavře, varování) → *Importovat*. U stavu lokací admin potvrdí „stav ke dni“ (čas exportu).

@@ -321,7 +321,6 @@ table.zaznamy td { font-size: 13px; }
 .nahled-importu.hotovo { border-color: var(--grn); background: var(--grnb); }
 .panel table.souhrn { max-width: 640px; }
 .panel table.souhrn tr.varovani td { background: var(--yelb); }
-.pin-jednou { font-size: 44px; font-weight: 700; letter-spacing: 12px; text-align: center; margin: 12px 0; font-variant-numeric: tabular-nums; }
 .panel table.nastaveni input, .panel table.nastaveni select, .panel td input:not([type=checkbox]) {
   width: 100%; padding: 7px 8px; border: 1px solid var(--line); border-radius: 6px; font-size: 14px; min-width: 90px;
 }

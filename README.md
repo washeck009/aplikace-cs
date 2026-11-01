@@ -51,8 +51,14 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
   + trend, **FEFO** (odkud vychystávat: nejbližší expirace, při shodě dřív naskladněné). Výpočet drží server 5 minut v cache.
 - **Záznamy**: hledání (lokace, EAN, číslo, název), filtr pásma a stavu, řazení kliknutím na sloupec, **export .xlsx**
   s aktuálním filtrem a **log kontrol** za období (max. 366 dní).
-- **Správa** (admin): uživatelé (přidat – PIN se vygeneruje a ukáže jednou, role, aktivní, nový PIN / odemknutí),
-  nastavení po podnicích, položky k doplnění (doplnit název nebo spárovat s číslem položky).
+- **Správa** (admin): uživatelé (přidat jen jméno a roli, role, aktivní, PIN nastaven ano/ne, reset PINu – od 0.4.1
+  i manažer), nastavení po podnicích, položky k doplnění (doplnit název nebo spárovat s číslem položky).
+
+**Verze 0.4.1 – vlastní PIN**
+- Uživatel se zakládá bez PINu; po výběru jména si PIN nastaví sám (*Nastav si PIN*, 2×) a je přihlášen.
+- *Můj účet* (odkaz v rozcestníku i v řízení) → změna PINu: současný + nový 2×; ostatní zařízení se odhlásí.
+- Reset PINu (admin, manažer, menu tabulky) PIN smaže a odhlásí uživatele. Triviální PINy (1111, 1234, 4321…) zakázané.
+- Manažer spravuje ve Správě uživatele (kromě adminů); nastavení a importy zůstávají adminovi.
 - **Importy** (admin) z xlsx / csv, podnik se volí při importu, vždy náhled → *Importovat*:
   - *Číselník* (EAN, Číslo položky, Název položky) – nové přidá, změny přepíše, položky „k doplnění“ doplní.
   - *Lokace* (LOKACE) – jen H nebo P s číslicí (H1, P0…); regálové `H2-P-37-1` / `H1-AB-12` aktivní, zóny
@@ -113,8 +119,9 @@ Celé nastavení se dělá jednou. Potřebuješ osobní Google účet (Gmail) a 
 2. **Aplikace CS → Založit / doplnit listy (setup)**.
 3. Poprvé Google požádá o autorizaci: *Pokračovat* → vyber svůj účet → *Rozšířená nastavení* →
    *Přejít na Aplikace CS (nebezpečné)* → *Povolit*. (Varování je běžné u vlastních skriptů, které Google neověřoval.)
-4. Po autorizaci spusť menu **znovu**. Skript založí listy a zeptá se na **jméno a PIN administrátora** (to jsi ty).
-   PIN se uloží jen jako hash, nikde jinde se neobjeví.
+4. Po autorizaci spusť menu **znovu**. Skript založí listy a zeptá se na **jméno administrátora** (to jsi ty).
+   PIN si nastavíš sám hned při prvním přihlášení v aplikaci (vybereš své jméno → *Nastav si PIN*);
+   uloží se jen jako hash, nikde jinde se neobjeví.
 5. Zkontroluj, že vznikly listy `Uzivatele`, `Polozky`, `Lokace`, `Zaznamy`, `Kontroly`, `Ukoly`, `Nastaveni`,
    `Import_stav_lokaci` a `Log_chyb`, a že v `Nastaveni` jsou hodnoty pro `DEK` i `STA`.
 
@@ -126,11 +133,15 @@ Setup můžeš spouštět opakovaně – doplní jen to, co chybí, nic nepřep�
 7. **Aplikace CS → Plánovač – zapnout denní spouštění (5:30)**. Google požádá o oprávnění ke spouštěčům – povol.
    Plánovač pak každé ráno vytvoří úkoly (stav spouštěče je vidět v PC části na obrazovce Úkoly).
 
-**Další uživatelé:** menu **Aplikace CS → Přidat uživatele** (jméno, role, PIN). Roli napiš číslem
-(1 skladník, 2 vedoucí, 3 manažer, 4 admin) nebo slovem – velká písmena ani háčky nevadí. Při chybě se dialog zeptá znovu.
-**Zapomenutý PIN nebo zamčený účet:** **Aplikace CS → Změnit PIN / odemknout uživatele** (jméno najde i bez háčků).
-Deaktivace uživatele: v listu `Uzivatele` přepiš `aktivni` na `FALSE`.
-(Správa uživatelů přímo v aplikaci přijde v etapě 4.)
+**Další uživatelé:** v aplikaci *Expirace – řízení → Správa* (admin, manažer), nebo menu **Aplikace CS → Přidat
+uživatele** – jen **jméno a role**, bez PINu. Roli napiš číslem (1 skladník, 2 vedoucí, 3 manažer, 4 admin) nebo slovem –
+velká písmena ani háčky nevadí. Uživatel si PIN nastaví sám při prvním přihlášení (vybere jméno → *Nastav si PIN*,
+PIN 2×) – ať to udělá hned, do té doby si ho může nastavit kdokoliv, kdo vybere jeho jméno.
+**Změna PINu:** každý sám v aplikaci – rozcestník → *Můj účet*.
+**Zapomenutý PIN nebo zamčený účet:** *Správa → Resetovat PIN*, nebo menu **Aplikace CS → Resetovat PIN / odemknout
+uživatele** (jméno najde i bez háčků). Reset PIN smaže a odhlásí uživatele; při dalším přihlášení si nastaví nový.
+PINy jako 1111, 1234 nebo 4321 aplikace nepřijme.
+Deaktivace uživatele: *Správa* → zrušit *Aktivní* (nebo v listu `Uzivatele` přepiš `aktivni` na `FALSE`).
 
 ### 4. Nasaď webovou aplikaci (API)
 
@@ -176,6 +187,23 @@ Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí st�
 
 ---
 
+## Přechod na verzi 0.4.1 (vlastní PIN, pro už nasazenou verzi 0.4.0)
+
+Web (verze **0.4.1**) se nasadí sám po pushi do `main`. V Apps Scriptu:
+
+1. V tabulce **Rozšíření → Apps Script**.
+2. **Nahraď celý obsah** čtyř souborů verzí z repa: [`Api.gs`](apps-script/Api.gs), [`Auth.gs`](apps-script/Auth.gs),
+   [`Setup.gs`](apps-script/Setup.gs), [`Sprava.gs`](apps-script/Sprava.gs). Ostatní se nezměnily. Ulož (Ctrl+S).
+3. Vrať se do tabulky a **obnov stránku** (F5) – v menu *Aplikace CS* je místo „Změnit PIN“ položka
+   **Resetovat PIN / odemknout uživatele**. Setup ani spouštěče znovu spouštět nemusíš (listy se nemění).
+4. **Nasadit → Spravovat nasazení** → tužka → *Verze: **Nová verze*** → **Nasadit**. URL zůstane stejná.
+5. Na čtečkách a PC aplikaci dvakrát zavři a otevři (PC: Ctrl+F5) – v rozcestníku verze **0.4.1** a odkaz *Můj účet*.
+
+Stávající PINy zůstávají platné (i kdyby byly „triviální“ – pravidlo platí pro nově nastavované PINy). Kdo má PIN,
+který dostal od správce, ať si ho změní v *Můj účet*.
+
+---
+
 ## Přechod na etapu 4 (verze 0.4.0, pro už nasazenou verzi 0.3.1)
 
 Web (verze **0.4.0**) se nasadí sám po pushi do `main`. V Apps Scriptu udělej ručně:
@@ -213,7 +241,7 @@ Web (verze **0.4.0**) se nasadí sám po pushi do `main`. V Apps Scriptu udělej
       na zkoušku, nebo ostrý export) → náhled → *Importovat*; v listu `Polozky` jsou nové řádky.
 - [ ] Admin: Importy → stav na lokacích (ostrý export) → náhled ukáže lokace H/P, hlídané zboží a co se uzavře →
       *Importovat*; v `Zaznamy` mají uzavřené záznamy stav *Není na lokaci*, v `Kontroly` je akce `import uzavřel`.
-- [ ] Správa → Přidat uživatele → ukáže se PIN; uživatel se s ním přihlásí.
+- [ ] Správa → Přidat uživatele (jméno + role) → uživatel vybere jméno → *Nastav si PIN* → přihlášen.
 - [ ] *Plánovač – spustit teď* po importu stavu: v Úkolech přibude úkol „Naskladněno po poslední kontrole…“.
 
 ---
@@ -322,9 +350,11 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
   Akce: `uzivatele.seznam`, `login`, `logout`, `ja`, `data.zaklad`, `lokace.nacti`, `lokace.dokonci`,
   `kontroly.dnes` (+ počet otevřených úkolů), `foto.nahraj`, `zaznam.stav` (Vydáno/Zlikvidováno, idempotentní podle
   `id_akce`), `ukoly.moje`, `diagnostika.odesli`; vedoucí+: `prehled.data` (cache 5 min, `obnovit: true` ji obejde),
-  `zaznamy.seznam`, `kontroly.log`, `ukoly.seznam`; manažer+: `ukoly.zadej`, `ukoly.zrus`; admin: `import.info`,
-  `import.polozky`, `import.lokace`, `import.stav` (bez `potvrdit` jen náhled), `sprava.uzivatele`, `sprava.uzivatel.uloz`,
-  `sprava.uzivatel.pin`, `sprava.nastaveni`, `sprava.nastaveni.uloz`, `sprava.polozky`, `sprava.polozka.uloz`.
+  `zaznamy.seznam`, `kontroly.log`, `ukoly.seznam`; manažer+: `ukoly.zadej`, `ukoly.zrus`, `sprava.uzivatele`,
+  `sprava.uzivatel.uloz`, `sprava.uzivatel.reset` (manažer jen účty pod adminem); admin: `import.info`,
+  `import.polozky`, `import.lokace`, `import.stav` (bez `potvrdit` jen náhled), `sprava.nastaveni`,
+  `sprava.nastaveni.uloz`, `sprava.polozky`, `sprava.polozka.uloz`. Bez přihlášení: `login.info` (má uživatel PIN?),
+  `pin.nastav` (jen účet bez PINu); přihlášený: `ucet.pin` (změna PINu, vrátí nový token).
 - Excel v prohlížeči: SheetJS 0.20.3 z `cdn.sheetjs.com` (pevná verze + kontrolní součet), načte se až v řízení.
 - Plánovač: funkce `planovac()` (spouštěč i menu), instalace spouštěče `instalujPlanovac()`.
 - `lokace.dokonci` je idempotentní podle `id_davky`: zpracované dávky si server pamatuje 30 dní ve Script Properties

@@ -12,6 +12,9 @@ function mapaAkci_() {
   return {
     'uzivatele.seznam': { role: null, fn: akceSeznamUzivatelu_ },
     'login': { role: null, fn: akceLogin_ },
+    'login.info': { role: null, fn: akceLoginInfo_ },
+    'pin.nastav': { role: null, fn: akcePinNastav_ },
+    'ucet.pin': { role: 'skladnik', fn: akceUcetPin_ },
     'logout': { role: 'skladnik', fn: akceLogout_ },
     'ja': { role: 'skladnik', fn: akceJa_ },
     'data.zaklad': { role: 'skladnik', fn: akceDataZaklad_ },
@@ -29,14 +32,15 @@ function mapaAkci_() {
     'ukoly.seznam': { role: 'vedouci', fn: akceUkolySeznam_ },
     'ukoly.zadej': { role: 'manazer', fn: akceUkolyZadej_ },
     'ukoly.zrus': { role: 'manazer', fn: akceUkolyZrus_ },
-    // Správa a importy: jen admin.
+    // Importy, nastavení a položky k doplnění: jen admin.
     'import.info': { role: 'admin', fn: akceImportInfo_ },
     'import.polozky': { role: 'admin', fn: akceImportPolozky_ },
     'import.lokace': { role: 'admin', fn: akceImportLokace_ },
     'import.stav': { role: 'admin', fn: akceImportStav_ },
-    'sprava.uzivatele': { role: 'admin', fn: akceSpravaUzivatele_ },
-    'sprava.uzivatel.uloz': { role: 'admin', fn: akceSpravaUzivatelUloz_ },
-    'sprava.uzivatel.pin': { role: 'admin', fn: akceSpravaUzivatelPin_ },
+    // Uživatele spravuje admin i manažer (manažer jen účty pod adminem – hlídá Sprava.gs).
+    'sprava.uzivatele': { role: 'manazer', fn: akceSpravaUzivatele_ },
+    'sprava.uzivatel.uloz': { role: 'manazer', fn: akceSpravaUzivatelUloz_ },
+    'sprava.uzivatel.reset': { role: 'manazer', fn: akceSpravaUzivatelReset_ },
     'sprava.nastaveni': { role: 'admin', fn: akceSpravaNastaveni_ },
     'sprava.nastaveni.uloz': { role: 'admin', fn: akceSpravaNastaveniUloz_ },
     'sprava.polozky': { role: 'admin', fn: akceSpravaPolozky_ },

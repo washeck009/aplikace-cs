@@ -13,7 +13,8 @@ const MODULY = [
 
 export function zobrazRozcestnik(koren, relace) {
   koren.innerHTML = hlavicka('Aplikace CS') + `<main class="ph-body">
-    <p class="hint">Přihlášen: <b>${esc(relace.jmeno)}</b> · ${esc(NAZVY_ROLI[relace.role] || relace.role)}</p>
+    <div class="radek-mezi"><p class="hint">Přihlášen: <b>${esc(relace.jmeno)}</b> · ${esc(NAZVY_ROLI[relace.role] || relace.role)}</p>
+      <button class="odkaz" data-ucet>👤 Můj účet</button></div>
     <div class="h">Moduly</div>
     ${MODULY.filter((m) => !m.role || m.role.includes(relace.role)).map((m) => `<button class="tile" data-modul="${m.cil}">
       <span class="ic">${m.ikona}</span>
@@ -26,4 +27,5 @@ export function zobrazRozcestnik(koren, relace) {
   // 5× klepnutí na verzi = diagnostika skenování.
   napojPrepinacDiagnostiky(koren.querySelector('[data-verze]'));
   koren.querySelectorAll('[data-modul]').forEach((b) => b.addEventListener('click', () => prejdi(b.dataset.modul)));
+  koren.querySelector('[data-ucet]').addEventListener('click', () => prejdi('#/ucet'));
 }

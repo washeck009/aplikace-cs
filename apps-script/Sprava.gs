@@ -7,10 +7,10 @@
 const NASTAVENI_CISLA = ['hranice_cervena', 'hranice_zluta', 'cil_kontrol_tyden', 'planovac_dni_bez_kontroly',
   'planovac_cervene_overit_dni', 'planovac_max_lokaci_ukol', 'planovac_naskladneno_dni'];
 const NASTAVENI_ANO_NE = ['planovac_naskladneno_zapnuto'];
-// PINy, které by uhodl každý – nový PIN je nikdy nedostane.
-const SLABE_PINY = ['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '1234', '4321', '0123', '9876'];
 
-/* ---------- Uživatelé ---------- */
+/* ---------- Uživatelé (admin a manažer) ---------- */
+// PIN si každý nastavuje sám (při prvním přihlášení, po resetu, v Můj účet) – správa PIN nikdy nevidí ani nezadává.
+// Manažer spravuje jen skladníky, vedoucí a manažery: admina nezaloží, nezmění ani mu neresetuje PIN.
 
 function uzivatelProKlienta_(u) {
   return {
@@ -18,25 +18,26 @@ function uzivatelProKlienta_(u) {
     jmeno: text_(u.jmeno),
     role: roleUzivatele_(u),
     aktivni: jeAno_(u.aktivni, true),
+    pin_nastaven: maPin_(u),
     zamceno_do: u.zamceno_do instanceof Date && u.zamceno_do > new Date() ? u.zamceno_do.toISOString() : null
   };
 }
 
-function akceSpravaUzivatele_(data, uzivatel) {
-  return {
-    uzivatele: nactiList_('Uzivatele').radky.filter(function (u) { return text_(u.jmeno); }).map(uzivatelProKlienta_)
-      .sort(function (a, b) { return a.jmeno.localeCompare(b.jmeno, 'cs'); }),
-    ja: uzivatel.id
-  };
+/** Smí `kdo` spravovat účet s rolí `role`? Admin všechny, manažer jen role pod adminem. */
+function muzeSpravovat_(kdo, role) {
+  return kdo.role === 'admin' || (kdo.role === 'manazer' && role !== 'admin');
 }
 
-/** Náhodný 4místný PIN (ne slabý). */
-function novyPin_() {
-  for (;;) {
-    const cisla = Utilities.getUuid().replace(/\D/g, '');
-    const pin = (cisla + '0000').slice(0, 4);
-    if (SLABE_PINY.indexOf(pin) < 0) return pin;
-  }
+function akceSpravaUzivatele_(data, uzivatel) {
+  return {
+    uzivatele: nactiList_('Uzivatele').radky.filter(function (u) { return text_(u.jmeno); }).map(function (u) {
+      const o = uzivatelProKlienta_(u);
+      o.muze_spravovat = muzeSpravovat_(uzivatel, o.role);
+      return o;
+    }).sort(function (a, b) { return a.jmeno.localeCompare(b.jmeno, 'cs'); }),
+    ja: uzivatel.id,
+    role_k_prirazeni: uzivatel.role === 'admin' ? ROLE_PODLE_CISLA : ROLE_PODLE_CISLA.filter(function (r) { return r !== 'admin'; })
+  };
 }
 
 /** Po úpravě musí zůstat aspoň jeden aktivní admin. */
@@ -46,28 +47,29 @@ function overAdmina_(radky) {
 }
 
 /**
- * {id?, jmeno, role, aktivni}. Bez id = nový uživatel (vrátí jednorázově vygenerovaný PIN),
+ * {id?, jmeno, role, aktivni}. Bez id = nový uživatel jen se jménem a rolí (PIN si nastaví sám při prvním přihlášení),
  * s id = změna role a aktivity. Jméno se nemění (podle něj se vede historie kontrol a úkolů).
  */
 function akceSpravaUzivatelUloz_(data, uzivatel) {
   const role = normalizujRoli_(data.role);
   if (!role) throw chyba_('Neznámá role. Vyber skladník, vedoucí, manažer nebo admin.');
+  if (!muzeSpravovat_(uzivatel, role)) throw chyba_('Roli admin může přidělit jen admin.', 'ROLE');
   if (!text_(data.id)) {
-    const pin = novyPin_();
     try {
-      pridejUzivatele_(data.jmeno, role, pin);
+      pridejUzivatele_(data.jmeno, role);
     } catch (e) {
       throw chyba_(e.message);
     }
-    return { jmeno: text_(data.jmeno).replace(/\s+/g, ' '), pin: pin };
+    return { jmeno: text_(data.jmeno).replace(/\s+/g, ' '), role: role, pin_nastaven: false };
   }
   return sZamkem_(function () {
     const tabulka = nactiList_('Uzivatele');
     const u = tabulka.radky.filter(function (r) { return text_(r.id) === text_(data.id); })[0];
     if (!u) throw chyba_('Uživatel neexistuje.');
+    if (!muzeSpravovat_(uzivatel, roleUzivatele_(u))) throw chyba_('Účet admina může měnit jen admin.', 'ROLE');
     const aktivni = data.aktivni !== false;
-    if (text_(u.id) === uzivatel.id && (role !== 'admin' || !aktivni)) {
-      throw chyba_('Sám sobě nemůžeš odebrat roli admin ani vypnout účet.');
+    if (text_(u.id) === uzivatel.id && (role !== roleUzivatele_(u) || !aktivni)) {
+      throw chyba_('Sám sobě nemůžeš změnit roli ani vypnout účet.');
     }
     u.role = role;
     u.aktivni = aktivni;
@@ -78,16 +80,14 @@ function akceSpravaUzivatelUloz_(data, uzivatel) {
   });
 }
 
-/** {id} → nový PIN (zobrazí se jen teď), odemčení účtu a odhlášení ze všech zařízení. */
-function akceSpravaUzivatelPin_(data) {
+/** {id} → reset PINu: smaže PIN, odemkne účet, odhlásí ze všech zařízení; nový PIN si uživatel nastaví sám. */
+function akceSpravaUzivatelReset_(data, uzivatel) {
   return sZamkem_(function () {
     const u = nactiList_('Uzivatele').radky.filter(function (r) { return text_(r.id) === text_(data.id); })[0];
     if (!u) throw chyba_('Uživatel neexistuje.');
-    const pin = novyPin_();
-    const sul = novaSul_();
-    upravRadek_('Uzivatele', u._radek, { pin_hash: hashPinu_(pin, sul), pin_salt: sul, chybne_pokusy: 0, zamceno_do: '' });
-    zrusTokenyUzivatele_(text_(u.id));
-    return { jmeno: text_(u.jmeno), pin: pin };
+    if (!muzeSpravovat_(uzivatel, roleUzivatele_(u))) throw chyba_('PIN admina může resetovat jen admin.', 'ROLE');
+    resetujPinUzivatele_(u);
+    return uzivatelProKlienta_(u);
   });
 }
 

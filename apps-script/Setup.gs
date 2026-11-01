@@ -8,7 +8,7 @@ function onOpen() {
     .addItem('Založit / doplnit listy (setup)', 'menuSetup')
     .addSeparator()
     .addItem('Přidat uživatele', 'menuPridatUzivatele')
-    .addItem('Změnit PIN / odemknout uživatele', 'menuZmenitPin')
+    .addItem('Resetovat PIN / odemknout uživatele', 'menuResetovatPin')
     .addSeparator()
     .addItem('Povolit fotky (Google Disk)', 'menuFotky')
     .addSeparator()
@@ -34,8 +34,8 @@ function menuSetup() {
 
 /**
  * Založí chybějící listy a sloupce, doplní výchozí nastavení obou podniků
- * a pokud ještě není žádný admin, založí prvního (jméno a PIN přes dialog nebo parametry).
- * Spouštět lze opakovaně – nic existujícího nepřepíše.
+ * a pokud ještě není žádný admin, založí prvního (jméno přes dialog nebo parametr; PIN si nastaví při prvním
+ * přihlášení – `pinAdmina` jen pro testy). Spouštět lze opakovaně – nic existujícího nepřepíše.
  */
 function setup(jmenoAdmina, pinAdmina) {
   sZamkem_(function () {
@@ -55,8 +55,6 @@ function setup(jmenoAdmina, pinAdmina) {
     const ui = uiNeboChyba_();
     jmenoAdmina = zeptejSe_(ui, 'První administrátor', 'Jméno administrátora (tak, jak se bude zobrazovat v aplikaci):');
     if (jmenoAdmina === null) return;
-    pinAdmina = zeptejSe_(ui, 'PIN administrátora', 'Zadej 4místný PIN (jen číslice). Nikomu ho neukazuj.');
-    if (pinAdmina === null) return;
   }
   try {
     pridejUzivatele_(jmenoAdmina, 'admin', pinAdmina);
@@ -64,7 +62,8 @@ function setup(jmenoAdmina, pinAdmina) {
     oznam_('Administrátor nebyl založen: ' + e.message + ' Spusť setup znovu.');
     return;
   }
-  oznam_('Hotovo. Listy jsou založené a administrátor „' + text_(jmenoAdmina) + '“ se může přihlásit.');
+  oznam_('Hotovo. Listy jsou založené. Administrátor „' + text_(jmenoAdmina) + '“ si PIN nastaví hned při prvním '
+    + 'přihlášení v aplikaci (vybere své jméno → Nastav si PIN) – udělej to co nejdřív.');
 }
 
 /** Založí chybějící listy, doplní chybějící sloupce a nastaví formáty. */
@@ -151,26 +150,29 @@ function najdiUzivatelePodleJmena_(radky, jmeno) {
     + '(velká písmena ani háčky nevadí), nebo ho přidej přes Přidat uživatele.');
 }
 
-/** Přidá uživatele s PINem (uloží jen hash se solí). Role i jako „Skladník“ nebo číslo 1–4. */
+/**
+ * Přidá uživatele – jen jméno a role, bez PINu: PIN si uživatel nastaví sám při prvním přihlášení v aplikaci.
+ * Role i jako „Skladník“ nebo číslo 1–4. `pin` je nepovinný (jen pro testy a skripty – uloží se hash se solí).
+ */
 function pridejUzivatele_(jmeno, role, pin) {
   jmeno = text_(jmeno).replace(/\s+/g, ' ');
   const klicRole = normalizujRoli_(role);
   pin = upravPin_(pin);
   if (!jmeno) throw new Error('Jméno je prázdné – napiš jméno, které se bude zobrazovat v aplikaci.');
   if (!klicRole) throw new Error(chybaRole_(role));
-  if (!platnyPin_(pin)) throw new Error(CHYBA_PINU);
+  if (pin && !platnyPin_(pin)) throw new Error(CHYBA_PINU);
 
   sZamkem_(function () {
     const existuje = nactiList_('Uzivatele').radky.some(function (u) {
       return text_(u.jmeno).toLowerCase() === jmeno.toLowerCase();
     });
-    if (existuje) throw new Error('Uživatel „' + jmeno + '“ už v listu Uzivatele je. PIN mu změníš v menu Změnit PIN / odemknout uživatele.');
-    const sul = novaSul_();
+    if (existuje) throw new Error('Uživatel „' + jmeno + '“ už v listu Uzivatele je. Zapomenutý PIN vyřeší Resetovat PIN.');
+    const sul = pin ? novaSul_() : '';
     pridejRadky_('Uzivatele', [{
       id: noveId_(),
       jmeno: jmeno,
       role: klicRole,
-      pin_hash: hashPinu_(String(pin), sul),
+      pin_hash: pin ? hashPinu_(String(pin), sul) : '',
       pin_salt: sul,
       aktivni: true,
       chybne_pokusy: 0,
@@ -179,20 +181,11 @@ function pridejUzivatele_(jmeno, role, pin) {
   });
 }
 
-/** Nastaví uživateli nový PIN, zruší zámek a odhlásí ho ze všech zařízení. Vrátí jméno z listu. */
-function zmenPin_(jmeno, pin) {
-  pin = upravPin_(pin);
-  if (!platnyPin_(pin)) throw new Error(CHYBA_PINU);
+/** Reset PINu podle jména (menu tabulky): smaže PIN, odemkne účet, odhlásí ze všech zařízení. Vrátí jméno z listu. */
+function resetujPin_(jmeno) {
   return sZamkem_(function () {
     const u = najdiUzivatelePodleJmena_(nactiList_('Uzivatele').radky, jmeno);
-    const sul = novaSul_();
-    upravRadek_('Uzivatele', u._radek, {
-      pin_hash: hashPinu_(String(pin), sul),
-      pin_salt: sul,
-      chybne_pokusy: 0,
-      zamceno_do: ''
-    });
-    zrusTokenyUzivatele_(text_(u.id));
+    resetujPinUzivatele_(u);
     return text_(u.jmeno);
   });
 }
@@ -208,22 +201,18 @@ function menuPridatUzivatele() {
     return normalizujRoli_(t) ? '' : chybaRole_(t);
   });
   if (role === null) return;
-  const pin = zeptejSeDokud_(ui, titulek, 'PIN – 4 číslice. Sděl ho uživateli osobně.', function (t) {
-    return platnyPin_(upravPin_(t)) ? '' : CHYBA_PINU;
-  });
-  if (pin === null) return;
   try {
-    pridejUzivatele_(jmeno, role, pin);
+    pridejUzivatele_(jmeno, role);
     ui.alert('Hotovo', 'Uživatel „' + text_(jmeno) + '“ přidán jako ' + NAZVY_ROLI[normalizujRoli_(role)]
-      + '. Přihlásí se jménem a PINem.', ui.ButtonSet.OK);
+      + '. PIN si nastaví sám při prvním přihlášení v aplikaci (vybere své jméno → Nastav si PIN).', ui.ButtonSet.OK);
   } catch (e) {
     ui.alert('Uživatel nebyl přidán', e.message, ui.ButtonSet.OK);
   }
 }
 
-function menuZmenitPin() {
+function menuResetovatPin() {
   const ui = uiNeboChyba_();
-  const titulek = 'Změnit PIN / odemknout';
+  const titulek = 'Resetovat PIN / odemknout';
   const radky = nactiList_('Uzivatele').radky;
   const jmeno = zeptejSeDokud_(ui, titulek, 'Jméno uživatele (velká písmena ani háčky nevadí):', function (t) {
     try {
@@ -234,16 +223,16 @@ function menuZmenitPin() {
     }
   });
   if (jmeno === null) return;
-  const pin = zeptejSeDokud_(ui, titulek, 'Nový PIN – 4 číslice:', function (t) {
-    return platnyPin_(upravPin_(t)) ? '' : CHYBA_PINU;
-  });
-  if (pin === null) return;
+  const kdo = text_(najdiUzivatelePodleJmena_(radky, jmeno).jmeno);
+  const ano = ui.alert(titulek, 'Smazat PIN uživatele „' + kdo + '“? Odhlásí se ze všech zařízení a při dalším přihlášení '
+    + 'si nastaví nový PIN sám.', ui.ButtonSet.OK_CANCEL);
+  if (ano !== ui.Button.OK) return;
   try {
-    const kdo = zmenPin_(jmeno, pin);
-    ui.alert('Hotovo', 'PIN uživatele „' + kdo + '“ je změněný a účet odemčený. Na všech zařízeních se musí přihlásit znovu.',
+    resetujPin_(jmeno);
+    ui.alert('Hotovo', 'PIN uživatele „' + kdo + '“ je smazaný a účet odemčený. Při dalším přihlášení si nastaví nový PIN.',
       ui.ButtonSet.OK);
   } catch (e) {
-    ui.alert('PIN nebyl změněn', e.message, ui.ButtonSet.OK);
+    ui.alert('PIN nebyl resetován', e.message, ui.ButtonSet.OK);
   }
 }
 
