@@ -59,9 +59,10 @@ function provedImport_(potvrdit, fn) {
 /* ---------- Číselník ---------- */
 
 /**
- * {podnik, radky: [[ean, cislo_polozky, nazev, cislo_radku_v_souboru]], deaktivovat, potvrdit}.
- * Nový EAN se přidá, u existujícího se změní číslo / název, položka „k doplnění“ se doplní. deaktivovat = položky
- * podniku, které v souboru nejsou, se označí jako neaktivní (kromě nevyřešených „k doplnění“).
+ * {podnik, radky: [[carovy_kod, cislo_polozky, nazev, cislo_radku_v_souboru]], deaktivovat, potvrdit}.
+ * Čárový kód (sloupec `ean`) je text: EAN, interní kód DEK104710… – velkými písmeny bez mezer; prázdný = čárovým kódem
+ * je číslo položky. Nový kód se přidá, u existujícího se změní číslo / název, položka „k doplnění“ se doplní.
+ * deaktivovat = položky podniku, které v souboru nejsou, se označí jako neaktivní (kromě nevyřešených „k doplnění“).
  */
 function akceImportPolozky_(data) {
   const podnik = overPodnik_(data.podnik);
@@ -70,7 +71,7 @@ function akceImportPolozky_(data) {
   return provedImport_(!!data.potvrdit, function (zapsat) {
     const tabulka = nactiList_('Polozky');
     const podleEan = {};
-    tabulka.radky.forEach(function (r) { if (text_(r.podnik) === podnik) podleEan[klicEan_(r.ean)] = r; });
+    tabulka.radky.forEach(function (r) { if (text_(r.podnik) === podnik) podleEan[klicKodu_(r.ean)] = r; });
 
     const chyby = [];
     const ean12 = [];
@@ -83,29 +84,31 @@ function akceImportPolozky_(data) {
     let duplicit = 0;
 
     radky.forEach(function (radek) {
-      const ean = text_(radek[0]).replace(/\s+/g, '');
-      const cislo = text_(radek[1]);
+      const cislo = text_(radek[1]).toUpperCase();
+      // Bez čárového kódu je čárovým kódem přímo číslo položky.
+      const ean = normalizujKod_(radek[0]) || normalizujKod_(cislo);
       const nazev = text_(radek[2]).slice(0, 200);
       const cisloRadku = radek[3] || '';
-      if (!jeEan_(ean)) {
-        chyby.push({ radek: cisloRadku, chyba: ean ? 'Neplatný EAN „' + ean + '“ (musí mít 8, 12, 13 nebo 14 číslic).' : 'Chybí EAN.' });
-        return;
-      }
       if (!cislo) {
-        chyby.push({ radek: cisloRadku, chyba: 'Chybí číslo položky (EAN ' + ean + ').' });
+        chyby.push({ radek: cisloRadku, chyba: 'Chybí číslo položky' + (ean ? ' (čárový kód ' + ean + ').' : '.') });
         return;
       }
-      const k = klicEan_(ean);
+      if (!jeKodZbozi_(ean)) {
+        chyby.push({ radek: cisloRadku, chyba: 'Neplatný čárový kód „' + ean + '“ – '
+          + (jeKodLokace_(ean) ? 'má tvar kódu lokace (H/P s pomlčkami), čtečka by ho brala jako lokaci.' : 'nepovolené znaky (jen písmena, číslice, . - / _; max. 40 znaků).') });
+        return;
+      }
+      const k = klicKodu_(ean);
       if (videne[k]) {
         if (klicCisla_(videne[k].cislo) !== klicCisla_(cislo)) {
-          chyby.push({ radek: cisloRadku, chyba: 'EAN ' + ean + ' je v souboru víckrát s jiným číslem položky (viz řádek ' + videne[k].radek + ').' });
+          chyby.push({ radek: cisloRadku, chyba: 'Čárový kód ' + ean + ' je v souboru víckrát s jiným číslem položky (viz řádek ' + videne[k].radek + ').' });
         } else {
           duplicit++;
         }
         return;
       }
       videne[k] = { cislo: cislo, radek: cisloRadku };
-      if (ean.length === 12) ean12.push(ean);
+      if (/^\d{12}$/.test(ean)) ean12.push(ean);
 
       const r = podleEan[k];
       if (!r) {
@@ -138,13 +141,13 @@ function akceImportPolozky_(data) {
     });
 
     const deaktivuje = data.deaktivovat ? tabulka.radky.filter(function (r) {
-      return text_(r.podnik) === podnik && jeAno_(r.aktivni, true) && !jeAno_(r.k_doplneni) && !videne[klicEan_(r.ean)];
+      return text_(r.podnik) === podnik && jeAno_(r.aktivni, true) && !jeAno_(r.k_doplneni) && !videne[klicKodu_(r.ean)];
     }) : [];
 
     // Záznamy se zbožím, jehož položka se doplnila nebo změnila číslo – převezmou číslo a přestanou být „k doplnění“.
     const zaznamy = nactiList_('Zaznamy');
     const upraveneZaznamy = zaznamy.radky.filter(function (z) {
-      return text_(z.podnik) === podnik && klicEan_(z.ean) in vyreseneEan;
+      return text_(z.podnik) === podnik && klicKodu_(z.ean) in vyreseneEan;
     });
 
     if (zapsat) {
@@ -152,7 +155,7 @@ function akceImportPolozky_(data) {
       zapisRadkyHromadne_(tabulka, zmenene.concat(deaktivuje));
       pridejRadky_('Polozky', nove);
       upraveneZaznamy.forEach(function (z) {
-        z.cislo_polozky = vyreseneEan[klicEan_(z.ean)];
+        z.cislo_polozky = vyreseneEan[klicKodu_(z.ean)];
         z.k_doplneni = false;
       });
       zapisRadkyHromadne_(zaznamy, upraveneZaznamy);
@@ -205,13 +208,18 @@ function akceImportLokace_(data) {
       const kod = normalizujKod_(radek[0]);
       if (!kod || videne[kod]) return;
       videne[kod] = true;
-      if (jeEan_(kod) || !/^[A-Z0-9][A-Z0-9.\/-]{0,29}$/.test(kod)) {
+      if (!/^[A-Z0-9][A-Z0-9.\/-]{0,29}$/.test(kod)) {
         chyby.push({ radek: radek[1] || '', chyba: 'Neplatný kód lokace „' + kod + '“.' });
         return;
       }
       if (!jeKontrolovanaLokace_(kod)) {
         const prefix = kod.split('-')[0];
         preskoceno[prefix] = (preskoceno[prefix] || 0) + 1;
+        return;
+      }
+      // H/P bez pomlček (např. H1A311) čtečka nepozná jako lokaci – sken by se bral jako kód zboží.
+      if (!jeKodLokace_(kod)) {
+        chyby.push({ radek: radek[1] || '', chyba: 'Kód „' + kod + '“ nemá tvar lokace (části oddělené pomlčkou, např. H2-P-37-1).' });
         return;
       }
       const ex = mapa[kod];
@@ -324,7 +332,8 @@ function akceImportStav_(data, uzivatel) {
     const vImportu = {};
     kodyLokaci.concat(klicePolozek.map(function (k) { return stav[k].lokace; })).forEach(function (kod) {
       const k = normalizujKod_(kod);
-      if (k && jeKontrolovanaLokace_(k) && /^[A-Z0-9][A-Z0-9.\/-]{0,29}$/.test(k)) vImportu[k] = true;
+      // Zakládají se jen kódy ve tvaru lokace (H/P s pomlčkami) – jiné by čtečka nenaskenovala jako lokaci.
+      if (k && jeKontrolovanaLokace_(k) && jeKodLokace_(k) && k.length <= 30) vImportu[k] = true;
     });
     const noveLokace = [];
     const zmeneneLokace = [];
@@ -426,11 +435,11 @@ function nazvyPolozek_(podnik, radkyPolozek) {
   const podleCisla = {};
   radkyPolozek.forEach(function (r) {
     if (text_(r.podnik) !== podnik || !text_(r.nazev)) return;
-    podleEan[klicEan_(r.ean)] = text_(r.nazev);
+    podleEan[klicKodu_(r.ean)] = text_(r.nazev);
     podleCisla[klicCisla_(r.cislo_polozky)] = text_(r.nazev);
   });
   return function (z) {
-    return podleEan[klicEan_(z.ean)] || podleCisla[klicCisla_(z.cislo_polozky)] || '';
+    return podleEan[klicKodu_(z.ean)] || podleCisla[klicCisla_(z.cislo_polozky)] || '';
   };
 }
 

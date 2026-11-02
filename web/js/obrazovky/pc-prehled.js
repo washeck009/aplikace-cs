@@ -58,7 +58,7 @@ function kpi(p) {
     ${dlazdice(cislo(k.naskladneno_po_kontrole), 'Naskladněno po poslední kontrole', { pod: 'lokací (pravidlo d)' })}
     ${dlazdice(`${cislo(k.ukoly_hotovo)} / ${cislo(k.ukoly_lokaci)}`, 'Úkoly – hotové lokace', {
       pod: `${cislo(k.ukolu_otevrenych)} otevřených úkolů · ${procento(k.ukoly_hotovo, k.ukoly_lokaci)} %` })}
-    ${dlazdice(cislo(k.k_doplneni), 'Položky k doplnění', { pod: 'neznámé EAN ze čtečky' })}
+    ${dlazdice(cislo(k.k_doplneni), 'Položky k doplnění', { pod: 'neznámé kódy zboží ze čtečky' })}
   </div>`;
 }
 

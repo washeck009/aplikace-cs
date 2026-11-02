@@ -71,7 +71,7 @@ function vykresliObsah(koren, relace, podnik, data) {
         <div class="field"><label for="uLokace">Lokace – jedna, víc oddělených čárkou, nebo rozsah v rámci řady</label>
           <textarea id="uLokace" name="lokace" rows="2" placeholder="např. H2-J-07-1 až H2-J-20-4, H2-P-37-1"></textarea></div>
         <div class="field"><label for="uPolozka">Jen konkrétní zboží (nepovinné)</label>
-          <input id="uPolozka" name="polozka" placeholder="EAN nebo číslo položky"></div>
+          <input id="uPolozka" name="polozka" placeholder="čárový kód nebo číslo položky"></div>
         <div class="field"><label for="uTermin">Termín</label><input id="uTermin" name="termin" type="date" value="${zaDvaDny()}"></div>
         <div class="field"><label for="uPopis">Poznámka pro skladníka</label><textarea id="uPopis" name="popis" rows="2"></textarea></div>
         <div class="chyba" id="uChyba" hidden></div>

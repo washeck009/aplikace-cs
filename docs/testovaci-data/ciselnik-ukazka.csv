@@ -1,4 +1,4 @@
-﻿EAN;Číslo položky;Název položky
+﻿Čárový kód;Číslo položky;Název položky
 8599999000011;1000000101;Testovací penetrace 5 l
 8599999000028;1000000102;Testovací lepidlo 25 kg
 8599999000035;1000000103;Testovací tmel akrylátový 310 ml
@@ -7,3 +7,5 @@
 859999900012;1000000106;Testovací lak 2,5 l (EAN bez nuly)
 8599999000066;BZ00001234;Testovací pěna montážní
 8599999000073;1000000108;Testovací malta 25 kg
+DEK999001;1000000109;Testovací tmel (interní čárový kód DEK)
+;1000000110;Testovací lepidlo (čárovým kódem je číslo položky)

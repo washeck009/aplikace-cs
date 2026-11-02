@@ -18,7 +18,7 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
   ⌨ otevře ruční zadání kódu, 📷 skenuje kamerou.
 - Po naskenování lokace se ukáže evidované zboží s pásmem, zbývajícími dny, kusy, posledním ověřením a poznámkou.
   U každého řádku ✓ Je tu / ✗ Není tu / ✎ Upravit (expirace, kusy, poznámka, Vydáno / Zlikvidováno, fotka).
-- Přidání zboží skenem EAN, expirace MM/RR s automatickým lomítkem; neznámý EAN → ruční číslo položky a příznak
+- Přidání zboží skenem čárového kódu, expirace MM/RR s automatickým lomítkem; neznámý kód → ruční číslo položky a příznak
   „k doplnění“. Stejné zboží se stejnou expirací se nezaloží dvakrát – existující záznam se označí ✓.
 - **Lokace hotová** (dialog pro neoznačené řádky) a **Bez expiračního zboží** (s potvrzením).
 - Celá lokace odchází na server jednou dávkou. Bez signálu se dávka uloží do zařízení a odešle se sama;
@@ -54,7 +54,7 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
 - **Správa** (admin): uživatelé (přidat jen jméno a roli, role, aktivní, PIN nastaven ano/ne, reset PINu – od 0.4.1
   i manažer), nastavení po podnicích, položky k doplnění (doplnit název nebo spárovat s číslem položky).
 - **Importy** (admin) z xlsx / csv, podnik se volí při importu, vždy náhled → *Importovat*:
-  - *Číselník* (EAN, Číslo položky, Název položky) – nové přidá, změny přepíše, položky „k doplnění“ doplní.
+  - *Číselník* (Čárový kód / EAN, Číslo položky, Název položky) – nové přidá, změny přepíše, položky „k doplnění“ doplní.
   - *Lokace* (LOKACE) – jen H nebo P s číslicí (H1, P0…); regálové `H2-P-37-1` / `H1-AB-12` aktivní, zóny
     (`H2-ZASOBNIK`) neaktivní; BAL, RAMP, PRIJEM, PAL… se přeskočí.
   - *Stav na lokacích* (export DATUM, UMISTENI, ID_POLOZKY, POL_NAZEV, MNOZ_ZAKL_MJ, ZAKL_MJ) – prohlížeč sečte řádky
@@ -64,7 +64,8 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
 - **Plánovač d) Naskladněno po poslední kontrole**: lokace s hlídaným zbožím naskladněným (DATUM) po poslední dokončené
   kontrole lokace, jen naskladnění za posledních `planovac_naskladneno_dni` (výchozí 14); vypíná
   `planovac_naskladneno_zapnuto`. Do plánovače ani pokrytí nepatří lokace mimo H/P.
-- EAN a čísla položek se porovnávají bez úvodních nul (Excel je u čísel zahazuje) – sken `0…` najde i EAN uložený bez nuly.
+- Čárové kódy a čísla položek se porovnávají bez úvodních nul (Excel je u čísel zahazuje) – sken `0…` najde i EAN
+  uložený bez nuly.
 - Ukázkové soubory se **smyšlenými** daty pro vyzkoušení importů: [`docs/testovaci-data/`](docs/testovaci-data/).
 
 **Verze 0.4.1 – vlastní PIN**
@@ -79,6 +80,14 @@ vzhled: [docs/maketa.html](docs/maketa.html), změny: [docs/CHANGELOG.md](docs/C
   Admin má vždy vše. Server kontroluje oprávnění u každé akce; aplikace podle nich skrývá dlaždice, menu a tlačítka.
 - Uložení matice se zapíše do listu `Log_spravy` (kdo, kdy, co). Výchozí hodnoty = dosavadní pravidla.
 - Nový modul jen přidá své klíče oprávnění (`MODULY_OPRAVNENI` v `Konfigurace.gs`).
+
+**Verze 0.4.3 – kódy zboží nejen EAN**
+- Sken: **lokace = kód ve formátu lokace** (H nebo P s číslicí, části oddělené pomlčkami – `H2-P-37-1`, `P0-K-45-1`),
+  **všechno ostatní je kód zboží** – EAN, interní čárový kód `DEK104710`, číslo položky.
+- Kód zboží se hledá v číselníku v *Čárovém kódu* (sloupec `ean`) i v *Čísle položky*; záznam dostane čárový kód
+  z číselníku, takže sken čísla položky najde stejný záznam jako sken čárového kódu.
+- Sloupec `ean` je v aplikaci „Čárový kód“ – text velkými písmeny bez mezer, bez kontroly „jen číslice“. Import
+  číselníku: prázdný čárový kód = číslo položky; kód ve tvaru lokace nebo s nepovolenými znaky je chyba.
 
 ## Struktura repa
 
@@ -195,6 +204,24 @@ URL do veřejného repa patří – bez platného PINu se přes ni nic nedostane
 4. Přihlas se: vyber jméno, zadej PIN. Čtečka si pamatuje posledního uživatele.
 
 Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí stáhne a projeví se při dalším otevření aplikace.
+
+---
+
+## Přechod na verzi 0.4.3 (kódy zboží nejen EAN, pro už nasazenou verzi 0.4.2)
+
+Web (verze **0.4.3**) se nasadí sám po pushi do `main`. V Apps Scriptu:
+
+1. V tabulce **Rozšíření → Apps Script**.
+2. **Nahraď celý obsah** čtyř souborů verzí z repa: [`Konfigurace.gs`](apps-script/Konfigurace.gs),
+   [`Kontrola.gs`](apps-script/Kontrola.gs), [`Import.gs`](apps-script/Import.gs), [`Sprava.gs`](apps-script/Sprava.gs).
+   Ostatní se nezměnily. Ulož (Ctrl+S).
+3. **Nasadit → Spravovat nasazení** → tužka → *Verze: **Nová verze*** → **Nasadit**. URL zůstane stejná.
+   Setup ani nic v menu tabulky spouštět nemusíš (listy se nemění).
+4. Na čtečkách aplikaci dvakrát zavři a otevři – verze **0.4.3**.
+5. Zkus: naskenuj lokaci, pak interní kód `DEK…` nebo číslo položky zboží z číselníku – ukáže se název položky.
+
+> Po této verzi už čtečka nepozná jako lokaci kódy bez pomlček nebo mimo H/P (např. `BAL-01`, `H1A311`) – bere je
+> jako kód zboží. Takové lokace se nekontrolují ani nyní (nejsou v plánovači ani pokrytí).
 
 ---
 

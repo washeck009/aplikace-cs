@@ -18,7 +18,8 @@ const KONTROLOVANA = /^[HP]\d/;
 // Sloupce podle názvů v hlavičce (normalizované: bez diakritiky, mezer a interpunkce, malými písmeny).
 const SLOUPCE = {
   polozky: {
-    ean: { nazvy: ['ean', 'ean13', 'carovykod', 'kodean'], povinny: true, popis: 'EAN' },
+    // Čárový kód: EAN, interní kód DEK…; prázdná buňka = čárovým kódem je číslo položky.
+    ean: { nazvy: ['carovykod', 'ean', 'ean13', 'kodean', 'barcode', 'kodzbozi'], povinny: true, popis: 'Čárový kód' },
     cislo: { nazvy: ['cislopolozky', 'idpolozky', 'cislopol', 'cislo', 'polozka'], povinny: true, popis: 'Číslo položky' },
     nazev: { nazvy: ['nazevpolozky', 'polnazev', 'nazev', 'nazevzbozi'], popis: 'Název položky' }
   },
@@ -36,7 +37,7 @@ const SLOUPCE = {
 };
 
 const KARTY = [
-  { typ: 'polozky', nazev: 'Číselník', popis: 'EAN, Číslo položky, Název položky. Nové EAN přidá, u existujících změní číslo / název, doplní položky „k doplnění“.' },
+  { typ: 'polozky', nazev: 'Číselník', popis: 'Čárový kód (EAN, DEK…; prázdný = číslo položky), Číslo položky, Název položky. Nové kódy přidá, u existujících změní číslo / název, doplní položky „k doplnění“.' },
   { typ: 'lokace', nazev: 'Lokace', popis: 'Sloupec LOKACE (ostatní sloupce nejsou potřeba – rozklad se udělá z kódu). Jen lokace H/P; regálové aktivní, ostatní H/P neaktivní; BAL, RAMP, PRIJEM… se přeskočí.' },
   { typ: 'stav', nazev: 'Stav na lokacích', popis: 'Export DATUM, UMISTENI, ID_POLOZKY, POL_NAZEV, MNOZ_ZAKL_MJ, ZAKL_MJ. Uzavře zboží, které z lokace zmizelo, založí chybějící lokace H/P, uloží hlídané zboží pro plánovač a FEFO.' }
 ];
@@ -240,8 +241,8 @@ function ukazNahled(kam, typ, souborNazev, podnikNazev, v, pozadavek, potvrdit, 
       + (v.duplicit ? radekSouhrnu('Opakované řádky (přeskočeno)', cislo(v.duplicit)) : '')
       + (v.deaktivuje ? radekSouhrnu('Označí se jako neaktivní', cislo(v.deaktivuje), 'varovani') : '')
       + (v.zaznamu_upravi ? radekSouhrnu('Záznamy, které převezmou číslo položky', cislo(v.zaznamu_upravi)) : '');
-    detail = (v.ean12 ? `<div class="upozorneni">${cislo(v.ean12)} EAN má 12 číslic – v Excelu mohl ztratit úvodní nulu
-        (např. ${v.ean12_ukazka.map(esc).join(', ')}). Nevadí: čtečka je najde i se skenovanou nulou. Lepší je exportovat EAN jako text.</div>` : '')
+    detail = (v.ean12 ? `<div class="upozorneni">${cislo(v.ean12)} ${v.ean12 === 1 ? 'číselný kód má' : v.ean12 < 5 ? 'číselné kódy mají' : 'číselných kódů má'} 12 číslic – EAN v Excelu mohl ztratit úvodní nulu
+        (např. ${v.ean12_ukazka.map(esc).join(', ')}). Nevadí: čtečka je najde i se skenovanou nulou. Lepší je exportovat čárové kódy jako text.</div>` : '')
       + (v.ukazka_novych.length ? `<details class="mt"><summary>Ukázka nových položek</summary><ul>${v.ukazka_novych.map(([e, c, n]) =>
         `<li>${esc(e)} · ${esc(c)} · ${esc(n)}</li>`).join('')}</ul></details>` : '');
   } else if (typ === 'lokace') {

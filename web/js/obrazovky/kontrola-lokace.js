@@ -3,8 +3,8 @@
 import { volej } from '../api.js';
 import { nactiZaklad, ulozZaklad } from '../db.js';
 import {
-  jeEan, jeKodLokace, kratkeDatum, napojPoleExpirace, nazevZbozi, normalizujKod, pasmo, platnaExpirace,
-  polozkaPodleEan, stitekPasma
+  jeKodLokace, jeKodZbozi, kanonickyKod, klicKodu, kratkeDatum, napojPoleExpirace, nazevZbozi, normalizujKod, pasmo,
+  platnaExpirace, polozkaPodleKodu, stitekPasma
 } from '../expirace.js';
 import { vyfotit } from '../fotky.js';
 import { obsahFronty, pridejDoFronty } from '../fronta.js';
@@ -66,7 +66,7 @@ export async function zobrazKontroluLokace(el, relace) {
   vykresli();
 }
 
-/** Bez číselníku by každý EAN vypadal jako neznámý – proto se data podniku musí stáhnout. */
+/** Bez číselníku by každý kód zboží vypadal jako neznámý – proto se data podniku musí stáhnout. */
 async function stahniZaklad() {
   try {
     const zaklad = await volej('data.zaklad', { podnik: s.podnik });
@@ -123,10 +123,15 @@ function krokSken() {
     placeholder: 'např. H2-P-37-1',
     priKodu: (surovy) => {
       const kod = normalizujKod(surovy);
-      if (jeEan(kod)) toast('Tohle je EAN zboží – nejdřív naskenuj štítek lokace.');
-      else if (!jeKodLokace(kod)) toast('Neznámý kód: ' + kod);
-      else if (!s.zaklad) toast('Nejdřív stáhni data podniku.');
-      else return otevriLokaci(kod);
+      // Lokace = H/P s číslicí a pomlčkami (H2-P-37-1); všechno ostatní je kód zboží.
+      if (jeKodLokace(kod)) {
+        if (!s.zaklad) toast('Nejdřív stáhni data podniku.');
+        else return otevriLokaci(kod);
+      } else if (jeKodZbozi(kod)) {
+        toast('Tohle je kód zboží – nejdřív naskenuj štítek lokace (H… nebo P…, např. H2-P-37-1).');
+      } else {
+        toast('Neznámý kód: ' + kod);
+      }
     }
   });
 }
@@ -220,7 +225,7 @@ function krokLokace() {
     ${L.zaznamy.length ? L.zaznamy.map(kartaZaznamu).join('') : '<p class="hint">Na lokaci zatím nic neevidujeme.</p>'}
     ${s.nove.length ? `<div class="h">Nově přidané</div>${s.nove.map(kartaNoveho).join('')}` : ''}
     <div class="h">Našel jsi tu další zboží?</div>
-    <p class="hint">Naskenuj jeho EAN – pole pro sken je dole. Naskenovaná jiná lokace nabídne přechod na ni.</p>
+    <p class="hint">Naskenuj jeho čárový kód (EAN, DEK…, číslo položky) – pole pro sken je dole. Naskenovaná jiná lokace nabídne přechod na ni.</p>
   </main>
   <footer class="foot">
     <button class="btn gry" data-bez>Bez expiračního zboží</button>
@@ -245,14 +250,18 @@ function krokLokace() {
   koren.querySelector('[data-bez]').addEventListener('click', bezExpiracnihoZbozi);
   koren.querySelector('[data-hotovo]').addEventListener('click', lokaceHotova);
   zobrazSkener({
-    popisek: `Naskenuj EAN nového zboží na ${L.kod}`,
-    placeholder: 'EAN',
+    popisek: `Naskenuj čárový kód nového zboží na ${L.kod}`,
+    placeholder: 'čárový kód zboží',
     priKodu: (surovy) => {
       const kod = normalizujKod(surovy);
-      if (jeEan(kod)) otevriNovy(kod);
-      else if (!jeKodLokace(kod)) toast('Neznámý kód: ' + kod);
-      else if (kod === s.lokace.kod.toUpperCase()) toast('Tuhle lokaci právě kontroluješ.');
-      else return prepnoutNaLokaci(kod);
+      if (jeKodLokace(kod)) {
+        if (kod === s.lokace.kod.toUpperCase()) toast('Tuhle lokaci právě kontroluješ.');
+        else return prepnoutNaLokaci(kod);
+      } else if (jeKodZbozi(kod)) {
+        otevriNovy(kod);
+      } else {
+        toast('Neznámý kód: ' + kod);
+      }
     }
   });
 }
@@ -279,7 +288,7 @@ function kartaNoveho(n) {
   return `<div class="rec ${pasmo(n.expirace, nastaveni())}">
     <div class="nm">${esc(n.nazev || `Položka ${n.cislo_polozky}`)} <span class="pill g">nové ✓</span></div>
     <div class="mt">Exp. <b>${esc(n.expirace)}</b> · ${stitekPasma(n.expirace, nastaveni())}${ks}</div>
-    <div class="mt">EAN ${esc(n.ean)} · č. pol. ${esc(n.cislo_polozky)}${n.k_doplneni ? ' · <span class="pill k">k doplnění</span>' : ''}${n.foto ? ' · 📷' : ''}</div>
+    <div class="mt">Kód ${esc(n.ean)} · č. pol. ${esc(n.cislo_polozky)}${n.k_doplneni ? ' · <span class="pill k">k doplnění</span>' : ''}${n.foto ? ' · 📷' : ''}</div>
     ${n.poznamka ? `<div class="mt">📝 ${esc(n.poznamka)}</div>` : ''}
     <div class="acts"><button data-odebrat="${esc(n.id)}">Odebrat</button></div>
   </div>`;
@@ -411,11 +420,13 @@ async function dokonci(typ) {
 /* ---------- 3) Nové zboží ---------- */
 
 function otevriNovy(naskenovany) {
-  // EAN jako v číselníku – sken „0…“ najde položku uloženou bez úvodní nuly (Excel ji zahodí) a naopak.
-  const ean = polozkaPodleEan(s.zaklad, naskenovany)?.ean || naskenovany;
-  const existujici = s.lokace.zaznamy.filter((z) => z.ean === ean && poUprave(z).stav === NA_LOKACI);
+  // Kód zboží se hledá v čárových kódech i číslech položek; záznam dostane čárový kód z číselníku (sken s úvodní
+  // nulou nebo číslem položky najde stejnou položku – nevznikne duplicitní záznam).
+  const polozka = polozkaPodleKodu(s.zaklad, naskenovany);
+  const ean = kanonickyKod(polozka, naskenovany);
+  const existujici = s.lokace.zaznamy.filter((z) => klicKodu(z.ean) === klicKodu(ean) && poUprave(z).stav === NA_LOKACI);
   s.formular = {
-    ean, polozka: polozkaPodleEan(s.zaklad, ean), cislo_polozky: '', expirace: '', pocet_ks: '', poznamka: '', foto: null,
+    ean, polozka, cislo_polozky: '', expirace: '', pocet_ks: '', poznamka: '', foto: null,
     // Upozornění, že stejné zboží už tu je (s jinou expirací je to v pořádku – dva záznamy).
     upozorneni: existujici.length ? `Na lokaci už je evidováno s expirací ${existujici.map((z) => poUprave(z).expirace).join(', ')}.` : ''
   };
@@ -429,11 +440,11 @@ function krokNovy() {
   const p = f.polozka;
   koren.innerHTML = hlavicka('Nové zboží – ' + s.lokace.kod, { zpet: HASH, podnik: s.podnik }) + `<main class="ph-body">
     ${p ? `<div class="task"><b>${esc(p.nazev || `Položka ${p.cislo_polozky}`)}</b>
-        <div class="hint">EAN ${esc(f.ean)} · č. pol. ${esc(p.cislo_polozky)}${p.k_doplneni ? ' · k doplnění' : ''}</div></div>`
-      : `<div class="task varovani"><b>⚠ Neznámý EAN ${esc(f.ean)}</b>
+        <div class="hint">Kód ${esc(f.ean)} · č. pol. ${esc(p.cislo_polozky)}${p.k_doplneni ? ' · k doplnění' : ''}</div></div>`
+      : `<div class="task varovani"><b>⚠ Neznámý kód zboží ${esc(f.ean)}</b>
         <div class="hint">Zadej číslo položky z etikety. Záznam se uloží s příznakem „k doplnění“, číselník doplní správce.</div></div>
       <div class="field"><label for="fCislo">Číslo položky</label>
-        <input id="fCislo" inputmode="numeric" autocomplete="off" value="${esc(f.cislo_polozky)}">
+        <input id="fCislo" autocapitalize="characters" autocomplete="off" spellcheck="false" value="${esc(f.cislo_polozky)}">
         <div class="hint" id="fCisloNazev"></div></div>`}
     ${f.upozorneni ? `<p class="hint">${esc(f.upozorneni)}</p>` : ''}
     ${poleFormulare(f)}
@@ -444,7 +455,7 @@ function krokNovy() {
   const cislo = koren.querySelector('#fCislo');
   if (cislo) {
     const ukazNazev = () => {
-      const x = s.zaklad.polozky.find((q) => q.cislo_polozky === cislo.value.trim() && q.nazev);
+      const x = s.zaklad.polozky.find((q) => klicKodu(q.cislo_polozky) === klicKodu(cislo.value) && q.nazev);
       koren.querySelector('#fCisloNazev').textContent = x ? 'V číselníku: ' + x.nazev : '';
     };
     cislo.addEventListener('input', ukazNazev);
@@ -456,23 +467,23 @@ function krokNovy() {
 function ulozitNovy() {
   const f = s.formular;
   prectiFormular();
-  const cislo = f.polozka ? f.polozka.cislo_polozky : f.cislo_polozky.trim();
+  const cislo = f.polozka ? f.polozka.cislo_polozky : f.cislo_polozky.trim().toUpperCase();
   if (!cislo) return chybaPole('#fCislo', 'Zadej číslo položky z etikety.');
   if (!overPoleFormulare()) return;
 
-  const stejny = s.lokace.zaznamy.find((z) => z.ean === f.ean && poUprave(z).expirace === f.expirace);
+  const stejny = s.lokace.zaznamy.find((z) => klicKodu(z.ean) === klicKodu(f.ean) && poUprave(z).expirace === f.expirace);
   if (stejny && poUprave(stejny).stav === NA_LOKACI) {
-    // Klíč lokace + EAN + expirace už existuje – místo duplicity potvrdit existující záznam.
+    // Klíč lokace + čárový kód + expirace už existuje – místo duplicity potvrdit existující záznam.
     if (s.rozhodnuti[stejny.id]?.akce !== 'ed') s.rozhodnuti[stejny.id] = { akce: 'ok' };
     toast(`Tohle zboží s expirací ${f.expirace} už tu evidujeme – označeno ✓ Je tu.`);
     return zpetNaLokaci();
   }
-  if (s.nove.some((n) => n.ean === f.ean && n.expirace === f.expirace)) {
+  if (s.nove.some((n) => klicKodu(n.ean) === klicKodu(f.ean) && n.expirace === f.expirace)) {
     toast('Tohle zboží s touto expirací už jsi přidal.');
     return zpetNaLokaci();
   }
 
-  const nazevPodleCisla = s.zaklad.polozky.find((q) => q.cislo_polozky === cislo && q.nazev)?.nazev;
+  const nazevPodleCisla = s.zaklad.polozky.find((q) => klicKodu(q.cislo_polozky) === klicKodu(cislo) && q.nazev)?.nazev;
   s.nove.push({
     id: noveId(), ean: f.ean, cislo_polozky: cislo, nazev: f.polozka?.nazev || nazevPodleCisla || '',
     expirace: f.expirace, pocet_ks: f.pocet_ks === '' ? null : Number(f.pocet_ks), poznamka: f.poznamka.trim(),
@@ -502,7 +513,7 @@ function krokUprava() {
   const z = s.lokace.zaznamy.find((x) => x.id === f.id);
   koren.innerHTML = hlavicka('Upravit záznam', { zpet: HASH, podnik: s.podnik }) + `<main class="ph-body">
     <div class="task"><b>${esc(nazevZbozi(z, s.zaklad))}</b>
-      <div class="hint">${esc(s.lokace.kod)} · EAN ${esc(z.ean)} · č. pol. ${esc(z.cislo_polozky)}</div></div>
+      <div class="hint">${esc(s.lokace.kod)} · kód ${esc(z.ean)} · č. pol. ${esc(z.cislo_polozky)}</div></div>
     ${poleFormulare(f, { uprava: true, fotoUrl: z.foto_url })}
     <p class="hint">Změna se uloží s tvým jménem a časem, až dokončíš lokaci.</p>
   </main>
@@ -517,9 +528,9 @@ function ulozitUpravu() {
   const z = s.lokace.zaznamy.find((x) => x.id === f.id);
 
   if (f.stav === NA_LOKACI && f.expirace !== z.expirace) {
-    const kolize = s.lokace.zaznamy.some((x) => x.id !== z.id && x.ean === z.ean
+    const kolize = s.lokace.zaznamy.some((x) => x.id !== z.id && klicKodu(x.ean) === klicKodu(z.ean)
         && poUprave(x).expirace === f.expirace && poUprave(x).stav === NA_LOKACI && s.rozhodnuti[x.id]?.akce !== 'no')
-      || s.nove.some((n) => n.ean === z.ean && n.expirace === f.expirace);
+      || s.nove.some((n) => klicKodu(n.ean) === klicKodu(z.ean) && n.expirace === f.expirace);
     if (kolize) {
       return chybaPole('#fExp', `Tohle zboží s expirací ${f.expirace} už na lokaci je – označ ho ✓ a tento záznam ✗.`);
     }

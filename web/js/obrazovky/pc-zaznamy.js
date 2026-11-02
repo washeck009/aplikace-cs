@@ -1,4 +1,4 @@
-// Řízení – Záznamy (kap. 6.3): tabulka s hledáním (lokace, EAN, číslo, název), filtry (pásmo, stav), řazením,
+// Řízení – Záznamy (kap. 6.3): tabulka s hledáním (lokace, čárový kód, číslo, název), filtry (pásmo, stav), řazením,
 // export do Excelu (.xlsx) s aktuálním filtrem a export logu kontrol za období.
 import { volej } from '../api.js';
 import { pasmo, zbyvaDni } from '../expirace.js';
@@ -33,7 +33,7 @@ export async function zobrazPcZaznamy(koren, relace) {
     <h1>Záznamy – ${esc(nazev)}</h1>
     <div class="sub">Zboží s expirací evidované na lokacích. Hledání a filtry se použijí i na export do Excelu.</div>
     <div class="panel filtry-pc">
-      <input id="zHledat" type="search" placeholder="Hledat lokaci, EAN, číslo nebo název" value="${esc(filtr.hledat)}">
+      <input id="zHledat" type="search" placeholder="Hledat lokaci, čárový kód, číslo nebo název" value="${esc(filtr.hledat)}">
       <select id="zPasmo"><option value="">Všechna pásma</option>${Object.entries(NAZVY_PASEM).map(([k, n]) =>
         `<option value="${k}"${filtr.pasmo === k ? ' selected' : ''}>${n}</option>`).join('')}</select>
       <select id="zStav"><option value="">Všechny stavy</option>${STAVY.map((s) =>
@@ -134,7 +134,7 @@ function radek(z) {
   return `<tr>
     <td><b>${esc(z.lokace)}</b></td>
     <td class="sirsi">${esc(z.nazev || 'Položka ' + z.cislo_polozky)}${z.k_doplneni ? ' <span class="pill k">k doplnění</span>' : ''}
-      <div class="hint">EAN ${esc(z.ean)} · č. ${esc(z.cislo_polozky)}</div></td>
+      <div class="hint">kód ${esc(z.ean)} · č. ${esc(z.cislo_polozky)}</div></td>
     <td>${esc(z.expirace)}</td>
     <td class="num">${z.zbyva ?? '–'}${z.stav === 'Na lokaci' && z.pasmo !== 'k' ? ` <span class="pill ${z.pasmo}">${NAZVY_PASEM[z.pasmo]}</span>` : ''}</td>
     <td class="num">${z.pocet_ks ?? ''}</td>
@@ -155,7 +155,7 @@ async function exportuj(tlacitko, podnik) {
   try {
     await stahniXlsx(nazevSouboru('zaznamy', podnik), [{
       nazev: 'Záznamy',
-      hlavicka: ['Lokace', 'Číslo položky', 'Název', 'EAN', 'Expirace', 'Zbývá dní', 'Pásmo', 'Ks', 'Stav', 'Ověřil', 'Ověřeno',
+      hlavicka: ['Lokace', 'Číslo položky', 'Název', 'Čárový kód', 'Expirace', 'Zbývá dní', 'Pásmo', 'Ks', 'Stav', 'Ověřil', 'Ověřeno',
         'Změnil', 'Změněno', 'Založil', 'Založeno', 'Naskladněno', 'Poznámka', 'Fotka', 'K doplnění'],
       sirky: [14, 14, 36, 15, 9, 9, 13, 6, 14, 16, 16, 16, 16, 16, 16, 16, 30, 20, 10],
       radky: radky.map((z) => [z.lokace, z.cislo_polozky, z.nazev, z.ean, z.expirace, z.zbyva, z.stav === 'Na lokaci' ? NAZVY_PASEM[z.pasmo] : '',
@@ -181,7 +181,7 @@ async function stahniLog(tlacitko, podnik, nazev, od, doDne) {
     }
     await stahniXlsx(`log-kontrol-${nazev.replace(/\s+/g, '-')}-${od}-${doDne}.xlsx`, [{
       nazev: 'Log kontrol',
-      hlavicka: ['Čas', 'Kdo', 'Lokace', 'Akce', 'Číslo položky', 'Název', 'EAN', 'Expirace', 'Ks', 'Poznámka', 'Započteno', 'Úkol'],
+      hlavicka: ['Čas', 'Kdo', 'Lokace', 'Akce', 'Číslo položky', 'Název', 'Čárový kód', 'Expirace', 'Ks', 'Poznámka', 'Započteno', 'Úkol'],
       sirky: [17, 16, 14, 18, 14, 36, 15, 9, 6, 40, 10, 14],
       radky: log.radky.map((r) => [new Date(r.cas), r.uzivatel, r.lokace, r.akce, r.cislo_polozky, r.nazev, r.ean, r.expirace,
         r.pocet_ks, r.poznamka, r.zapocteno ? 'ano' : '', r.id_ukolu])

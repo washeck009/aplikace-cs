@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.4.3 – 2026-11-02 – Kódy zboží nejen EAN
+
+### Změněno
+- **Rozlišení skenu otočeno:** lokace = kód ve formátu lokace (`LOKACE_FORMAT`: H nebo P s číslicí, části oddělené
+  pomlčkami – `H2-P-37-1`, `P0-K-45-1`); všechno ostatní je kód zboží (EAN, interní `DEK104710`, číslo položky).
+  Dřív platilo „EAN = jen číslice 8/12/13/14, jinak lokace“. Server odmítne jako lokaci kód jiného tvaru.
+- **Kód zboží se hledá v číselníku podniku v čárovém kódu (`ean`) i v čísle položky** (server `hledaniPolozek_`,
+  klient `polozkaPodleKodu`). Záznam dostane čárový kód z číselníku (`kanonickyKod`) – sken čísla položky najde stejný
+  záznam jako sken čárového kódu, nevznikne duplicita.
+- Sloupec `ean` v `Polozky` je v aplikaci **„Čárový kód“**: text velkými písmeny bez mezer, validace už nevyžaduje
+  jen číslice (povolené znaky, ne tvar lokace). Čísla položek ukládaná ze čtečky / Správy velkými písmeny.
+- **Import číselníku:** sloupec „Čárový kód“ (nebo „EAN“), prázdný = čárovým kódem je číslo položky; chyba u kódu
+  ve tvaru lokace nebo s nepovolenými znaky; upozornění na 12 číslic jen u čistě číselných kódů.
+- **Import lokací / stavu:** H/P kód bez pomlček (např. `H1A311`) není lokace – v importu lokací chyba, ze stavu se
+  nezaloží.
+- Porovnání kódů (`klicKodu_` / `klicKodu`, dřív `klicEan_`): velká písmena, bez mezer, číselné bez úvodních nul.
+- Popisky v aplikaci: „EAN“ → „Čárový kód“ / „kód“ (kontrola lokace, záznamy a export, správa, importy, úkoly).
+- Převod z AppSheetu (etapa 5): stejné pravidlo – zapsáno ve specifikaci kap. 8 a v zadání etapy 5.
+- Ukázkový číselník `docs/testovaci-data/ciselnik-ukazka.csv`: sloupec „Čárový kód“, řádek s kódem `DEK…`
+  a řádek bez čárového kódu.
+
 ## 0.4.2 – 2026-11-01 – Oprávnění nastavitelná v aplikaci
 
 ### Přidáno

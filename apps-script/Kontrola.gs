@@ -11,14 +11,25 @@ function normalizujKod_(kod) {
   return text_(kod).toUpperCase().replace(/\s+/g, '');
 }
 
-/** EAN = jen číslice o délce 8, 12, 13 nebo 14; vše ostatní je kód lokace. */
-function jeEan_(kod) {
-  return /^\d+$/.test(kod) && [8, 12, 13, 14].indexOf(kod.length) >= 0;
+/**
+ * Rozlišení skenu: lokace = kód ve formátu lokace (H nebo P s číslicí, části oddělené pomlčkami – H2-P-37-1).
+ * Všechno ostatní je kód zboží (EAN, interní čárový kód DEK104710, číslo položky).
+ */
+function jeKodLokace_(kod) {
+  return LOKACE_FORMAT.test(normalizujKod_(kod));
+}
+
+/** Kód zboží (čárový kód): neprázdný, povolené znaky, ne ve formátu lokace. */
+function jeKodZbozi_(kod) {
+  const k = normalizujKod_(kod);
+  return KOD_ZBOZI_ZNAKY.test(k) && !jeKodLokace_(k);
 }
 
 function overKodLokace_(kod) {
   const k = normalizujKod_(kod);
-  if (!k || jeEan_(k) || !/^[A-Z0-9][A-Z0-9.\/-]{0,29}$/.test(k)) throw chyba_('Neplatný kód lokace: ' + k);
+  if (!jeKodLokace_(k)) {
+    throw chyba_('Neplatný kód lokace: ' + k + ' (lokace začíná H nebo P s číslicí a části odděluje pomlčka, např. H2-P-37-1).');
+  }
   return k;
 }
 
@@ -46,17 +57,48 @@ function jeKontrolovanaLokace_(kod) {
 }
 
 /**
- * Klíč EAN pro porovnání: bez úvodních nul. Excel z EAN uloženého jako číslo nulu zahodí (13 → 12 číslic),
- * čtečka ji ale naskenuje – oba tvary pak najdou stejnou položku.
+ * Klíč kódu pro porovnání – čárového kódu i čísla položky: velkými písmeny bez mezer, čistě číselný bez úvodních nul.
+ * Excel z čísla nulu zahodí (EAN 13 → 12 číslic), čtečka ji ale naskenuje – oba tvary pak najdou stejnou položku.
  */
-function klicEan_(ean) {
-  return text_(ean).replace(/^0+(?=\d)/, '');
+function klicKodu_(kod) {
+  const t = normalizujKod_(kod);
+  return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, '') : t;
 }
 
-/** Klíč čísla položky pro porovnání: číselné bez úvodních nul (Excel je z čísla zahodí), jinak velkými písmeny. */
+/** Klíč čísla položky (stejné pravidlo jako u čárového kódu). */
 function klicCisla_(cislo) {
-  const t = text_(cislo).toUpperCase();
-  return /^\d+$/.test(t) ? t.replace(/^0+(?=\d)/, '') : t;
+  return klicKodu_(cislo);
+}
+
+/**
+ * Hledání zboží v číselníku podniku: kód ze skenu se porovná se sloupcem `ean` (čárový kód) i `cislo_polozky`
+ * (u části zboží je čárovým kódem přímo číslo položky). Vrátí funkci kód → řádek položky, nebo null.
+ */
+function hledaniPolozek_(radkyPolozek, podnik) {
+  const podleKodu = {};
+  const podleCisla = {};
+  radkyPolozek.forEach(function (r) {
+    if (text_(r.podnik) !== podnik) return;
+    if (text_(r.ean)) podleKodu[klicKodu_(r.ean)] = r;
+    const k = klicKodu_(r.cislo_polozky);
+    // U čísla s víc čárovými kódy přednost položce s názvem, ne „k doplnění“.
+    if (k && (!podleCisla[k] || (jeAno_(podleCisla[k].k_doplneni) && !jeAno_(r.k_doplneni)))) podleCisla[k] = r;
+  });
+  const hledej = function (kod) {
+    const k = klicKodu_(kod);
+    return k ? podleKodu[k] || podleCisla[k] || null : null;
+  };
+  hledej.pridej = function (r) {
+    podleKodu[klicKodu_(r.ean)] = r;
+    if (!podleCisla[klicKodu_(r.cislo_polozky)]) podleCisla[klicKodu_(r.cislo_polozky)] = r;
+  };
+  return hledej;
+}
+
+/** Čárový kód, pod kterým se zboží eviduje: z číselníku (u položky bez čárového kódu číslo položky), jinak naskenovaný. */
+function kanonickyKod_(polozka, naskenovany) {
+  if (!polozka) return normalizujKod_(naskenovany);
+  return normalizujKod_(polozka.ean) || normalizujKod_(polozka.cislo_polozky);
 }
 
 function najdiLokaci_(radky, podnik, kod) {
@@ -87,7 +129,7 @@ function jeNaLokaci_(zaznam) {
 }
 
 function klicZaznamu_(lokace, ean, expiraceText) {
-  return normalizujKod_(lokace) + '|' + text_(ean) + '|' + expiraceText;
+  return normalizujKod_(lokace) + '|' + klicKodu_(ean) + '|' + expiraceText;
 }
 
 /** Počet kusů: celé nezáporné číslo, jinak prázdné. */
@@ -241,12 +283,11 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
     if (!podleKlice[k] || jeNaLokaci_(r)) podleKlice[k] = r;
   });
 
-  const polozkaPodleEan = {};
+  const radkyPolozek = nactiList_('Polozky').radky;
+  const najdiPolozku = hledaniPolozek_(radkyPolozek, podnik);
   const nazevPodleCisla = {};
-  nactiList_('Polozky').radky.forEach(function (r) {
-    if (text_(r.podnik) !== podnik) return;
-    polozkaPodleEan[klicEan_(r.ean)] = r;
-    if (text_(r.nazev)) nazevPodleCisla[text_(r.cislo_polozky)] = text_(r.nazev);
+  radkyPolozek.forEach(function (r) {
+    if (text_(r.podnik) === podnik && text_(r.nazev)) nazevPodleCisla[klicCisla_(r.cislo_polozky)] = text_(r.nazev);
   });
 
   const zmenene = [];
@@ -315,11 +356,12 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
   };
 
   const pridejZaznam = function (radek) {
-    // EAN jako v číselníku (sken s úvodní nulou najde položku uloženou bez ní a naopak).
-    const znamy = polozkaPodleEan[klicEan_(radek.ean)];
-    const ean = znamy ? text_(znamy.ean) : text_(radek.ean);
+    // Kód zboží se hledá v čárových kódech i číslech položek; záznam dostane čárový kód z číselníku
+    // (sken s úvodní nulou nebo číslem položky najde stejnou položku – nevznikne druhý klíč).
+    const znamy = najdiPolozku(radek.ean);
+    const ean = kanonickyKod_(znamy, radek.ean);
     const exp = parsujExpiraci_(radek.expirace);
-    if (!jeEan_(ean) || !exp) {
+    if (!jeKodZbozi_(ean) || !exp) {
       souhrn.preskoceno++;
       return;
     }
@@ -344,18 +386,18 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
       return;
     }
 
-    let polozka = polozkaPodleEan[klicEan_(ean)];
-    const cislo = polozka ? text_(polozka.cislo_polozky) : text_(radek.cislo_polozky);
+    let polozka = najdiPolozku(ean);
+    const cislo = polozka ? text_(polozka.cislo_polozky) : text_(radek.cislo_polozky).toUpperCase();
     if (!cislo) {
       souhrn.preskoceno++;
       return;
     }
     if (!polozka) {
-      // Neznámý EAN – do číselníku k doplnění (název převezme od stejného čísla položky, je-li).
-      polozka = { podnik: podnik, ean: ean, cislo_polozky: cislo, nazev: nazevPodleCisla[cislo] || '',
+      // Neznámý kód zboží – do číselníku k doplnění (název převezme od stejného čísla položky, je-li).
+      polozka = { podnik: podnik, ean: ean, cislo_polozky: cislo, nazev: nazevPodleCisla[klicCisla_(cislo)] || '',
         aktivni: true, zdroj: 'rucni', k_doplneni: true };
       novePolozky.push(polozka);
-      polozkaPodleEan[klicEan_(ean)] = polozka;
+      najdiPolozku.pridej(polozka);
     }
 
     const id = /^[a-f0-9]{12}$/.test(text_(radek.id)) && !vsechnaId[text_(radek.id)] ? text_(radek.id) : noveId_();

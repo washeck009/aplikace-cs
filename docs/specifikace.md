@@ -66,9 +66,15 @@ Datumy jako datum/čas tabulky, časové pásmo Europe/Prague.
 chybne_pokusy, zamceno_do.
 
 **Polozky** (číselník): podnik, ean, cislo_polozky, nazev, aktivni, zdroj (import/rucni), k_doplneni (TRUE/FALSE).
-Jedna položka může mít víc EAN (víc řádků). Číslo položky vždy jako **text** (úvodní nuly).
-EAN a čísla položek se **porovnávají bez úvodních nul** (Excel z čísla nulu zahodí: EAN 13 → 12 číslic) – sken `0…`
-najde položku uloženou bez nuly a záznam převezme EAN z číselníku. Čísla položek mohou být i textová (např. `BZ…`).
+Sloupec `ean` je v aplikaci **„Čárový kód“** – nejen EAN: i interní čárové kódy DEK (`DEK` + číslice, např.
+`DEK104710`) a u části zboží je čárovým kódem přímo číslo položky. Ukládá se **vždy jako text, velkými písmeny bez
+mezer**; validace nevyžaduje jen číslice (jen povolené znaky a ne tvar kódu lokace). Prázdný čárový kód v importu =
+čárovým kódem je číslo položky. Jedna položka může mít víc čárových kódů (víc řádků). Číslo položky vždy jako **text**
+(úvodní nuly), může být i textové (např. `BZ…`).
+**Kód zboží ze skenu se hledá v číselníku podniku ve sloupci `ean` i ve sloupci `cislo_polozky`.** Záznam dostane
+čárový kód z číselníku (sken čísla položky nebo kódu s úvodní nulou najde stejnou položku – nevznikne druhý záznam).
+Kódy se **porovnávají bez úvodních nul** u čistě číselných (Excel z čísla nulu zahodí: EAN 13 → 12 číslic) a bez
+ohledu na velikost písmen a mezery. *(Upřesněno vlastníkem, verze 0.4.3.)*
 
 **Lokace**: podnik, kod, hala, rada, sloupec, nosnik, zona (P = policová galerie / H = hala), aktivni, k_overeni.
 Kód lokace se rozkládá podle pomlček (např. `H2-P-37-1` → hala H2, řada P, sloupec 37, nosník 1; třídílný
@@ -94,7 +100,7 @@ pocet_ks, poznamka, id_ukolu, zapocteno (TRUE když tato akce byla první dokon�
 z Vydáno / Zlikvidováno z obrazovky Blíží se expirace.
 
 **Ukoly**: id, podnik, typ (`ruční` / `plánovač`), komu (jméno nebo `kdokoliv`), lokace (seznam kódů oddělený čárkou),
-polozka (volitelně EAN nebo číslo položky), termin, popis, stav (`otevřený` / `splněný` / `zrušený`), zadal, zadano,
+polozka (volitelně čárový kód nebo číslo položky), termin, popis, stav (`otevřený` / `splněný` / `zrušený`), zadal, zadano,
 splneno, splnil. Úkol je splněný, když jsou zkontrolované všechny jeho lokace (kýmkoliv po zadání).
 
 **Nastaveni** (klíč–hodnota, řádek = podnik + klíč): hranice_cervena, hranice_zluta, cil_kontrol_tyden (prázdné = bez cíle),
@@ -115,7 +121,8 @@ H/P, sečtené za lokaci + položku; každý import **nahradí** předchozí imp
 při importu; sloupce se hledají podle názvů v hlavičce bez ohledu na velikost písmen a diakritiku):
 - *Stav na lokacích:* DATUM, BALKOD (nepoužívá se), UMISTENI → lokace, ID_POLOZKY → cislo_polozky (vždy text),
   POL_NAZEV (doplní prázdný název v číselníku), MNOZ_ZAKL_MJ → mnozstvi (součet), ZAKL_MJ → mj.
-- *Číselník:* EAN, Číslo položky, Název položky.
+- *Číselník:* Čárový kód (EAN, DEK…; sloupec může být nadepsaný i „EAN“; prázdný = číslo položky), Číslo položky,
+  Název položky.
 - *Lokace:* LOKACE (HALA, ŘADA, SLOUPEC, NOSNÍK se nepoužívají – rozklad z kódu).
 Import musí zvládnout desítky tisíc řádků (DEK ~30 000): soubor se čte a sčítá v prohlížeči, na server jde jen
 výsledek. *(Upřesněno vlastníkem 2026-11-01.)*
@@ -126,13 +133,15 @@ výsledek. *(Upřesněno vlastníkem 2026-11-01.)*
 2. **Domů** – přepínač podniku (pamatuje si poslední), dlaždice *Kontrola lokace*, *Moje úkoly (počet)*,
    *Blíží se expirace (počet červených + expirovaných)*, počet dnes započtených lokací.
 3. **Kontrola lokace**
-   - Sken lokace (pole s fokusem, Enter). Rozlišení lokace vs. EAN: EAN = jen číslice (8/12/13/14 znaků), jinak lokace.
+   - Sken lokace (pole s fokusem, Enter). **Rozlišení skenu: lokace = kód ve formátu lokace** – `H` nebo `P` s číslicí
+     a části oddělené pomlčkami (`H2-P-37-1`, `P0-K-45-1`); **všechno ostatní je kód zboží** (EAN, `DEK104710`,
+     číslo položky). *(Od verze 0.4.3; dřív EAN = jen číslice.)*
    - Zobrazí záznamy se stavem `Na lokaci` na této lokaci: název, expirace, pásmo + zbývá dní, ks, kdy a kdo naposledy ověřil, poznámka.
    - U každého: **✓ Je tu** (ověřeno), **✗ Není tu** (stav `Není na lokaci`), **✎ Upravit** (oprava expirace/ks/poznámky,
      fotka, případně stav Vydáno/Zlikvidováno).
-   - **Přidání zboží**: sken EAN → najde položku v číselníku podniku → expirace MM/RR (číselná klávesnice, automatické lomítko,
+   - **Přidání zboží**: sken kódu zboží → najde položku v číselníku podniku (čárový kód nebo číslo položky) → expirace MM/RR (číselná klávesnice, automatické lomítko,
      validace měsíce 1–12) → ks (nepovinné) → poznámka (nepovinné) → fotka (nepovinné) → uložit; nový záznam je rovnou ✓.
-   - **Neznámý EAN**: skladník zadá číslo položky ručně; do číselníku se přidá řádek s `k_doplneni = TRUE`, záznam také.
+   - **Neznámý kód zboží**: skladník zadá číslo položky ručně; do číselníku se přidá řádek s `k_doplneni = TRUE`, záznam také.
    - **Lokace hotová**: povolit až po rozhodnutí u všech řádků; jinak dialog „Neoznačené řádky: N“ s volbou
      *Zpět* / *Vše ostatní je tu*.
    - **Bez expiračního zboží**: lokace je zkontrolovaná a nic na ní není; pokud tam jsou evidované záznamy, vyžádat potvrzení
@@ -166,11 +175,11 @@ se po přihlášení nacachují, aby šlo skenovat i při slabém signálu.
 2. **Úkoly**: nový úkol (komu, lokace – jednotlivé, oddělené čárkou nebo rozsah „od–do“ v rámci řady, volitelně položka,
    termín, poznámka), přehled úkolů s průběhem, zrušení úkolu, pravidla plánovače (zobrazení).
    Zadávat a rušit smí, kdo má oprávnění *Zadávání a rušení úkolů* (výchozí manažer); s *Přehledy* úkoly a plnění jen vidí.
-3. **Záznamy**: tabulka s hledáním (lokace, EAN, číslo, název), filtry (podnik, pásmo, stav), řazení,
+3. **Záznamy**: tabulka s hledáním (lokace, čárový kód, číslo, název), filtry (podnik, pásmo, stav), řazení,
    **export do Excelu (.xlsx)** s aktuálním filtrem; export logu kontrol za období.
 4. **Správa** (záložky podle oprávnění; **Oprávnění** – matice role × oprávnění se zaškrtávátky – jen admin): uživatelé (přidat jen jméno a roli, role, aktivní, sloupec „PIN nastaven
    ano/ne“, reset PINu = smazání PINu), nastavení po podnicích,
-   import číselníku (xlsx/csv: EAN, číslo položky, název), import lokací, import stavu lokací, položky k doplnění (doplnit název / spárovat).
+   import číselníku (xlsx/csv: čárový kód, číslo položky, název), import lokací, import stavu lokací, položky k doplnění (doplnit název / spárovat).
    Každý import: zvolit podnik → nahrát soubor → **náhled** (počty nových / změněných / přeskočených / chybných řádků,
    co se uzavře, varování) → *Importovat*. U stavu lokací admin potvrdí „stav ke dni“ (čas exportu).
 
@@ -189,12 +198,15 @@ se po přihlášení nacachují, aby šlo skenovat i při slabém signálu.
   změněné po čase exportu („stav ke dni“). Chybějící lokace H/P z exportu se založí. Spočítat „zboží bez kontroly“;
   přepočítat FEFO.
 - **Týdenní report (pondělí 7:00)** pro každý podnik e-mail příjemcům z nastavení: souhrn + příloha xlsx se záznamy
-  v červeném pásmu a expirovanými (lokace, číslo, název, EAN, expirace, zbývá dní, ks, naposledy ověřeno).
+  v červeném pásmu a expirovanými (lokace, číslo, název, čárový kód, expirace, zbývá dní, ks, naposledy ověřeno).
 
 ## 8. Převod dat z AppSheet
 Jednorázový import z původní Google tabulky (list Záznamy: EAN, Lokace, Expirace MM/RR, Stav položky, Změnil, Datum změny,
 Poznámka, Počet kusů; list Číselník; list lokace). Záznamy bez stavu = `Na lokaci`, Vydáno/Zlikvidováno převzít.
 Duplicitní klíče sloučit (nejnovější datum). Log kontrol převzít jako historii (akce `potvrzeno`, `zapocteno` dopočítat).
+Sloupec „EAN“ z AppSheetu je **čárový kód** (i `DEK…` nebo číslo položky): převzít jako text velkými písmeny bez mezer,
+nevyžadovat jen číslice, zboží hledat v číselníku podle čárového kódu i čísla položky (stejně jako import číselníku
+a sken). Lokace převzít jen ve formátu lokace (H/P s pomlčkami).
 
 ## 9. Nefunkční požadavky
 - Rychlost: sken → zobrazení lokace do 2 s při běžném signálu; zápis neblokuje další sken.

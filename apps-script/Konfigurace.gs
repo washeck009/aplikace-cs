@@ -50,6 +50,11 @@ const CACHE_OPRAVNENI_S = 300; // změna přímo v listu se projeví nejpozději
 
 // Kontrolují se jen lokace v halách a policové galerii: H nebo P a hned číslice (H1, H2, P0…; ne PAL, PRIJEM).
 const LOKACE_KONTROLOVANA = /^[HP]\d/;
+// Formát kódu lokace (rozlišení skenu): H nebo P s číslicí a části oddělené pomlčkami – H2-P-37-1, P0-K-45-1,
+// H2-ZASOBNIK. Všechno ostatní je kód zboží: EAN, interní čárový kód DEK104710, číslo položky (stejně ve web/js/expirace.js).
+const LOKACE_FORMAT = /^[HP]\d+(-[A-Z0-9.\/]+)+$/;
+// Povolené znaky kódu zboží (čárový kód je vždy text, velká písmena, bez mezer).
+const KOD_ZBOZI_ZNAKY = /^[A-Z0-9][A-Z0-9._\/-]{0,39}$/;
 // Regálová lokace hala-řada-sloupec(-nosník), např. H2-P-37-1, H1-AB-12. H/P lokace jiného tvaru
 // (H2-ZASOBNIK, P0-NEJAKE MISTO) se při importu založí jako neaktivní – admin je může zapnout.
 const LOKACE_REGALOVA = /^[HP]\d+-[A-Z0-9]{1,3}-\d+(-[A-Z0-9]{1,3})?$/;

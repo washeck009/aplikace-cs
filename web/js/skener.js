@@ -353,7 +353,7 @@ function rucniZadani() {
   m.className = 'modal';
   m.innerHTML = `<div class="box" role="dialog" aria-modal="true">
     <b class="titulek">Zadat kód ručně</b>
-    <p class="hint">Kód lokace (např. H2-P-37-1) nebo EAN zboží.</p>
+    <p class="hint">Kód lokace (např. H2-P-37-1) nebo čárový kód zboží (EAN, DEK…, číslo položky).</p>
     <input class="rucni-kod" autocomplete="off" autocapitalize="characters" autocorrect="off" spellcheck="false" enterkeyhint="done">
     <div class="row"><button class="btn gry" data-zrusit>Zrušit</button><button class="btn" data-pouzit>Použít</button></div>
   </div>`;

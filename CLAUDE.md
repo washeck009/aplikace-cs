@@ -61,8 +61,11 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
 3. **Podnik se ze souboru neurčuje** – Stachema a Stavebniny DEK mají oddělené exporty, podnik volí admin při importu.
 4. **DATUM v exportu stavu = poslední naskladnění do lokace** (`Import_stav_lokaci.naskladneno`); používá se ve FEFO
    a v pravidle plánovače d). Import stavu ukládá jen hlídané zboží a vždy nahradí předchozí import podniku.
-5. **Excel zahazuje úvodní nuly:** EAN a čísla položek porovnávej přes `klicEan_` / `klicCisla_` (server)
-   a `klicEan` / `polozkaPodleEan` (klient), ne přes `===`. Kódy čti z buněk jako text (`hodnotaNaText`),
+5. **Kódy zboží (od 0.4.3):** sken = lokace jen ve formátu lokace (`LOKACE_FORMAT`: H/P s číslicí a pomlčkami),
+   všechno ostatní je kód zboží – EAN, interní `DEK104710`, číslo položky. Sloupec `ean` = „Čárový kód“, vždy text
+   velkými písmeny bez mezer, nikdy validace „jen číslice“. Zboží hledej v `ean` i `cislo_polozky`
+   (`hledaniPolozek_` / `kanonickyKod_` na serveru, `polozkaPodleKodu` / `kanonickyKod` v klientu).
+   **Excel zahazuje úvodní nuly:** kódy porovnávej přes `klicKodu_` / `klicCisla_` (server) a `klicKodu` (klient), ne přes `===`. Kódy čti z buněk jako text (`hodnotaNaText`),
    rozklad lokace dělej z kódu, ne ze sloupců SLOUPEC / NOSNÍK. V tabulce drž kódy jako text (`TEXTOVE_SLOUPCE`).
 6. **Velké objemy:** import musí zvládnout desítky tisíc řádků (DEK ~30 000) – čti a sčítej v prohlížeči, na server
    posílej jen výsledek; zapisuj hromadně (`zapisRadkyHromadne_`, `nahradRadkyPodniku_`), ne po řádcích.

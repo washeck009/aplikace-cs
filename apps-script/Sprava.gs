@@ -159,7 +159,7 @@ function akceSpravaNastaveniUloz_(data) {
 
 /* ---------- Položky k doplnění (oprávnění importy – číselník) ---------- */
 
-/** {podnik} → položky „k doplnění“ (neznámé EAN ze čtečky) s počtem záznamů a návrhem názvu podle čísla položky. */
+/** {podnik} → položky „k doplnění“ (neznámé kódy zboží ze čtečky) s počtem záznamů a návrhem názvu podle čísla položky. */
 function akceSpravaPolozky_(data) {
   const podnik = overPodnik_(data.podnik);
   const polozky = nactiList_('Polozky').radky.filter(function (r) { return text_(r.podnik) === podnik; });
@@ -169,14 +169,14 @@ function akceSpravaPolozky_(data) {
   });
   const zaznamu = {};
   nactiList_('Zaznamy').radky.forEach(function (z) {
-    if (text_(z.podnik) === podnik && jeNaLokaci_(z)) zaznamu[klicEan_(z.ean)] = (zaznamu[klicEan_(z.ean)] || 0) + 1;
+    if (text_(z.podnik) === podnik && jeNaLokaci_(z)) zaznamu[klicKodu_(z.ean)] = (zaznamu[klicKodu_(z.ean)] || 0) + 1;
   });
   return {
     podnik: podnik,
     polozky: polozky.filter(function (r) { return jeAno_(r.aktivni, true) && jeAno_(r.k_doplneni); }).map(function (r) {
       return {
         ean: text_(r.ean), cislo_polozky: text_(r.cislo_polozky), nazev: text_(r.nazev),
-        zaznamu: zaznamu[klicEan_(r.ean)] || 0, navrh_nazvu: znamaCisla[klicCisla_(r.cislo_polozky)] || ''
+        zaznamu: zaznamu[klicKodu_(r.ean)] || 0, navrh_nazvu: znamaCisla[klicCisla_(r.cislo_polozky)] || ''
       };
     })
   };
@@ -184,16 +184,16 @@ function akceSpravaPolozky_(data) {
 
 /**
  * {podnik, ean, cislo_polozky, nazev} – doplní / opraví položku k doplnění. Bez názvu se převezme název známé položky
- * se stejným číslem (spárování). S názvem přestane být „k doplnění“; záznamy s tímto EAN převezmou číslo položky.
+ * se stejným číslem (spárování). S názvem přestane být „k doplnění“; záznamy s tímto čárovým kódem převezmou číslo položky.
  */
 function akceSpravaPolozkaUloz_(data) {
   const podnik = overPodnik_(data.podnik);
-  const cislo = text_(data.cislo_polozky);
+  const cislo = text_(data.cislo_polozky).toUpperCase();
   if (!cislo) throw chyba_('Vyplň číslo položky.');
   return sZamkem_(function () {
     const polozky = nactiList_('Polozky');
-    const r = polozky.radky.filter(function (x) { return text_(x.podnik) === podnik && klicEan_(x.ean) === klicEan_(data.ean); })[0];
-    if (!r) throw chyba_('Položka s EAN ' + text_(data.ean) + ' neexistuje.');
+    const r = polozky.radky.filter(function (x) { return text_(x.podnik) === podnik && klicKodu_(x.ean) === klicKodu_(data.ean); })[0];
+    if (!r) throw chyba_('Položka s čárovým kódem ' + text_(data.ean) + ' neexistuje.');
     let nazev = text_(data.nazev).slice(0, 200);
     if (!nazev) {
       const znama = polozky.radky.filter(function (x) {
@@ -206,7 +206,7 @@ function akceSpravaPolozkaUloz_(data) {
     r.k_doplneni = !nazev;
     upravRadek_('Polozky', r._radek, { cislo_polozky: cislo, nazev: nazev, k_doplneni: !nazev });
     const zaznamy = nactiList_('Zaznamy');
-    const upravit = zaznamy.radky.filter(function (z) { return text_(z.podnik) === podnik && klicEan_(z.ean) === klicEan_(r.ean); });
+    const upravit = zaznamy.radky.filter(function (z) { return text_(z.podnik) === podnik && klicKodu_(z.ean) === klicKodu_(r.ean); });
     upravit.forEach(function (z) {
       z.cislo_polozky = cislo;
       z.k_doplneni = !nazev;

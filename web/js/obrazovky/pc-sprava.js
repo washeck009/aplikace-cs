@@ -178,13 +178,13 @@ async function polozky(obsah, podnik, aktualni, znovu) {
   const data = await volej('sprava.polozky', { podnik });
   if (!aktualni()) return;
   obsah.innerHTML = `<div class="panel"><h2>Položky k doplnění <span class="hint">(${data.polozky.length})</span></h2>
-    <div class="hint mb">Neznámé EAN, které skladníci naskenovali a zadali k nim číslo položky ručně. Doplň název, nebo oprav číslo
-      položky a název nech prázdný – převezme se ze známé položky se stejným číslem (spárování). Záznamy s tímto EAN se opraví také.</div>
+    <div class="hint mb">Neznámé kódy zboží, které skladníci naskenovali a zadali k nim číslo položky ručně. Doplň název, nebo oprav číslo
+      položky a název nech prázdný – převezme se ze známé položky se stejným číslem (spárování). Záznamy s tímto čárovým kódem se opraví také.</div>
     ${data.polozky.length ? `<div class="tblw"><table>
-      <tr><th>EAN</th><th>Číslo položky</th><th>Název</th><th class="num">Záznamů</th><th></th></tr>
+      <tr><th>Čárový kód</th><th>Číslo položky</th><th>Název</th><th class="num">Záznamů</th><th></th></tr>
       ${data.polozky.map((p) => `<tr data-ean="${esc(p.ean)}">
         <td>${esc(p.ean)}</td>
-        <td><input data-cislo value="${esc(p.cislo_polozky)}" size="14"></td>
+        <td><input data-cislo value="${esc(p.cislo_polozky)}" size="14" autocapitalize="characters"></td>
         <td class="sirsi"><input data-nazev value="${esc(p.nazev)}" placeholder="${esc(p.navrh_nazvu ? 'prázdné = ' + p.navrh_nazvu : 'název zboží')}"></td>
         <td class="num">${p.zaznamu}</td>
         <td><button class="chip" data-ulozit>Uložit</button></td></tr>`).join('')}
