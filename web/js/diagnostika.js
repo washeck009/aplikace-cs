@@ -1,4 +1,5 @@
-// Diagnostika skenování: události klávesnice a IME, hodnota pole, stav fokusu; přepínač režimu pole C/B.
+// Diagnostika skenování: události klávesnice a IME, hodnota pole, stav fokusu, kamera (motor, rozlišení,
+// nepřečtené kódy); přepínač režimu pole C/B.
 // Zapíná a vypíná se 5× klepnutím na číslo verze v rozcestníku; volba se pamatuje na zařízení.
 import { volej } from './api.js';
 import { nastavRezimPole, REZIMY_POLE, rezimPole, stavSkeneru } from './skener.js';
@@ -10,9 +11,11 @@ const UDALOSTI_KLAVESNICE = ['keydown', 'keyup', 'keypress', 'beforeinput', 'inp
   'compositionstart', 'compositionupdate', 'compositionend'];
 const MAX_UDALOSTI = 30;
 const MAX_FOKUS = 8;
+const MAX_KAMERA = 12;
 
 const udalosti = [];
 const fokus = [];
+const kamera = []; // spuštění kamery, přečtené kódy, „nepřečteno do 10 s“ (motor, rozlišení, kamera)
 let panel = null;
 let casovac = null;
 
@@ -43,6 +46,10 @@ window.addEventListener('cs:sken', (e) => pridej(udalosti, MAX_UDALOSTI, {
   cas: Date.now(), typ: 'SKEN', text: `kód="${e.detail.kod}" zdroj=${e.detail.zdroj}`
 }));
 window.addEventListener('cs:diag', (e) => pridej(udalosti, MAX_UDALOSTI, { cas: Date.now(), typ: 'POLE', text: e.detail }));
+// Kamera má vlastní oddíl – události klávesnice by ji z posledních 30 záznamů rychle vytlačily.
+window.addEventListener('cs:kamera', (e) => pridej(kamera, MAX_KAMERA, { cas: Date.now(), text: e.detail }));
+// Odeslat výpis z dialogu kamery (skener.js diagnostiku neimportuje – kruhová závislost).
+window.addEventListener('cs:diag-odeslat', () => odesli());
 ['focusin', 'focusout'].forEach((typ) => document.addEventListener(typ, (e) =>
   pridej(fokus, MAX_FOKUS, { cas: Date.now(), typ, cil: popisCile(e.target) }), true));
 ['focus', 'blur'].forEach((typ) => window.addEventListener(typ, (e) => {
@@ -110,7 +117,8 @@ function text() {
     + ` · fokus v poli ${s.fokusVPoli ? 'ano' : 'NE'} · readOnly ${s.readOnly ? 'ano' : 'ne'} · inputmode ${s.inputmode}`
     + ` · v poli "${s.vPoli}" · fronta [${s.fronta.join(', ')}]\n`
     + `\nUdálosti (posledních ${MAX_UDALOSTI}):\n${radky.join('\n') || '–'}\n`
-    + `\nZměny fokusu:\n${fokus.map((f) => `${cas(f.cas)} ${f.typ} ${f.cil}`).join('\n') || '–'}`;
+    + `\nZměny fokusu:\n${fokus.map((f) => `${cas(f.cas)} ${f.typ} ${f.cil}`).join('\n') || '–'}`
+    + `\n\nKamera:\n${kamera.map((k) => `${cas(k.cas)} ${k.text}`).join('\n') || '–'}`;
 }
 
 function vykresliRezim() {
@@ -139,6 +147,7 @@ function zobraz() {
     panel.querySelector('[data-vymazat]').addEventListener('click', () => {
       udalosti.length = 0;
       fokus.length = 0;
+      kamera.length = 0;
     });
     panel.querySelector('[data-vypnout]').addEventListener('click', () => {
       ulozZapnuto(false);
@@ -154,17 +163,20 @@ function zobraz() {
 }
 
 /** Uloží výpis do listu Log_chyb přes API (na čtečce nefunguje schránka). */
-async function odeslatVypis(e) {
-  const tlacitko = e.currentTarget;
-  tlacitko.disabled = true;
+async function odesli() {
   try {
     await volej('diagnostika.odesli', { text: text() });
     toast('Výpis uložen do tabulky (list Log_chyb).');
   } catch (chyba) {
     toast('Výpis se nepodařilo odeslat: ' + chyba.message);
-  } finally {
-    tlacitko.disabled = false;
   }
+}
+
+async function odeslatVypis(e) {
+  const tlacitko = e.currentTarget;
+  tlacitko.disabled = true;
+  await odesli();
+  tlacitko.disabled = false;
 }
 
 function skryj() {

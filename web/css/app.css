@@ -187,7 +187,13 @@ body.se-skenerem .foot { bottom: var(--sken-vyska, 130px); }
 }
 .modal .titulek { display: block; font-size: 18px; margin-bottom: 6px; }
 .modal .row { margin-top: 12px; }
-.kamera video { width: 100%; max-height: 60vh; background: #000; border-radius: 10px; margin: 10px 0; object-fit: cover; }
+.kamera video { width: 100%; max-height: 55vh; background: #000; border-radius: 10px; margin: 10px 0; object-fit: cover; }
+.kamera-diag { font: 11px/1.35 ui-monospace, Consolas, monospace; color: var(--mut); margin: -4px 0 8px; word-break: break-word; }
+.kamera-diag[hidden] { display: none; }
+.kamera-tlacitka { margin-bottom: 8px; }
+.kamera-tlacitka .btn { min-height: 44px; padding: 8px 10px; font-size: 15px; }
+.kamera-tlacitka .btn[hidden] { display: none; }
+.kamera-tlacitka .btn.on { background: var(--yel); color: #fff; }
 
 /* Toast */
 .toast {

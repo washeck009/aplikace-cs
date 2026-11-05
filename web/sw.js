@@ -1,6 +1,6 @@
 // Service worker: statické soubory z cache (aplikace se otevře i bez signálu), na pozadí se obnovují.
 // Při každé změně ve web/ zvyš VERZE (a stejnou v js/verze.js) – stará cache se pak smaže.
-const VERZE = '0.4.3';
+const VERZE = '0.4.4';
 const CACHE = 'aplikace-cs-' + VERZE;
 
 const SOUBORY = [
@@ -43,10 +43,24 @@ const SOUBORY = [
   './ikony/ikona-maskable-512.png'
 ];
 
+// Knihovna pro skenování kamerou (ZXing, pevná verze z CDN – adresa stejná jako ve web/js/skener.js).
+// Stáhne se s aplikací do cache, aby kamera fungovala i bez signálu; kontrolní součet (SRI) ověřuje prohlížeč.
+const ZXING_URL = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+
+/** ZXing do nové cache – z předchozí verze aplikace, jinak z CDN. Bez signálu instalace nespadne (zkusí se příště). */
+async function ulozZxing(cache) {
+  const stara = await caches.match(ZXING_URL);
+  if (stara) return cache.put(ZXING_URL, stara);
+  try {
+    const odp = await fetch(new Request(ZXING_URL, { mode: 'cors' }));
+    if (odp.ok) await cache.put(ZXING_URL, odp);
+  } catch { /* bez signálu – stáhne se při prvním otevření kamery */ }
+}
+
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE)
-      .then((c) => c.addAll(SOUBORY.map((u) => new Request(u, { cache: 'reload' }))))
+      .then((c) => c.addAll(SOUBORY.map((u) => new Request(u, { cache: 'reload' }))).then(() => ulozZxing(c)))
       .then(() => self.skipWaiting())
   );
 });
@@ -63,6 +77,18 @@ self.addEventListener('activate', (e) => {
 
 self.addEventListener('fetch', (e) => {
   const req = e.request;
+  // ZXing (pevná verze – nemění se): z cache, jinak ze sítě a uložit.
+  if (req.method === 'GET' && req.url === ZXING_URL) {
+    e.respondWith((async () => {
+      const cache = await caches.open(CACHE);
+      const ulozena = await cache.match(ZXING_URL);
+      if (ulozena) return ulozena;
+      const odp = await fetch(req);
+      if (odp.ok) cache.put(ZXING_URL, odp.clone());
+      return odp;
+    })());
+    return;
+  }
   // API (POST na Apps Script) a cizí adresy jdou vždy přímo na síť.
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
 

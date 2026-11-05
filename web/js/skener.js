@@ -377,77 +377,246 @@ function rucniZadani() {
   vstup.focus();
 }
 
-/* ---------- Kamera (jen za tlačítkem 📷, po skenu nebo Zrušit se vypne) ---------- */
+/* ---------- Kamera (jen za tlačítkem 📷, po skenu, Zrušit i odchodu z aplikace se vždy vypne) ---------- */
+// Vlastní stream (vyšší rozlišení, ostření, přepnutí kamery, svítilna) a nad ním jeden ze dvou motorů:
+// BarcodeDetector (vestavěný v Chrome) nebo ZXing (záloha). Motor, rozlišení a kamera jdou do diagnostiky.
+
+// Formáty čárových kódů na zboží a štítcích (BarcodeDetector názvy → ZXing BarcodeFormat).
+const FORMATY_KAMERY = {
+  ean_13: 'EAN_13', ean_8: 'EAN_8', upc_a: 'UPC_A', upc_e: 'UPC_E',
+  code_128: 'CODE_128', code_39: 'CODE_39', itf: 'ITF', qr_code: 'QR_CODE'
+};
+const KLIC_KAMERY = 'cs.kamera'; // zvolená zadní kamera (deviceId), pamatuje se v zařízení
+const NEPRECTENO_MS = 10000; // po této době bez přečtení zápis do diagnostiky
+const INTERVAL_DETEKCE_MS = 150;
+const INTERVAL_ZXING_MS = 250; // ZXing dekóduje v hlavním vlákně – nechat čtečce čas
+
+/** Diagnostika zapnutá (5× verze) – stejný klíč jako v diagnostika.js (import by udělal kruhovou závislost). */
+const diagnostikaZapnuta = () => {
+  try {
+    return localStorage.getItem('cs.diagnostika') === '1';
+  } catch {
+    return false;
+  }
+};
+
+/** Záznam do oddílu Kamera v diagnostice (zapisuje se vždy, panel ho ukáže a Odeslat výpis pošle do Log_chyb). */
+const diagKamera = (text) => window.dispatchEvent(new CustomEvent('cs:kamera', { detail: text }));
 
 async function kamera() {
   const kod = await skenujKamerou();
   if (kod) prijmiKod(kod, 'kamera');
 }
 
+/** Zadní kamery zařízení (podle názvu); když žádná název nemá, všechny kamery. Názvy jsou až po povolení kamery. */
+async function zadniKamery() {
+  const vse = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'videoinput');
+  const zadni = vse.filter((d) => /back|rear|environment|zadn|facing back/i.test(d.label));
+  return zadni.length ? zadni : vse;
+}
+
+/** Motor: BarcodeDetector s formáty, které zařízení umí, jinak ZXing (TRY_HARDER + POSSIBLE_FORMATS). */
+async function vytvorMotor(vynutitZxing) {
+  if (!vynutitZxing && 'BarcodeDetector' in window) {
+    const umi = await BarcodeDetector.getSupportedFormats().catch(() => []);
+    const formaty = Object.keys(FORMATY_KAMERY).filter((f) => umi.includes(f));
+    if (formaty.length) {
+      const detektor = new BarcodeDetector({ formats: formaty });
+      return { nazev: 'BarcodeDetector', formaty, cti: async (video) => (await detektor.detect(video))[0]?.rawValue || null };
+    }
+  }
+  await nactiZxing();
+  const Z = window.ZXing;
+  const formaty = Object.keys(FORMATY_KAMERY);
+  const napovedy = new Map();
+  napovedy.set(Z.DecodeHintType.TRY_HARDER, true);
+  napovedy.set(Z.DecodeHintType.POSSIBLE_FORMATS, formaty.map((f) => Z.BarcodeFormat[FORMATY_KAMERY[f]]));
+  const ctecka = new Z.MultiFormatReader();
+  ctecka.setHints(napovedy);
+  const platno = document.createElement('canvas');
+  const kresli = platno.getContext('2d', { willReadFrequently: true });
+  return {
+    nazev: 'ZXing',
+    formaty,
+    // Celý snímek v plném rozlišení videa (malé kódy na vzdálenějším zboží).
+    cti: async (video) => {
+      platno.width = video.videoWidth;
+      platno.height = video.videoHeight;
+      kresli.drawImage(video, 0, 0);
+      try {
+        const bitmapa = new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.HTMLCanvasElementLuminanceSource(platno)));
+        return ctecka.decodeWithState(bitmapa).getText();
+      } catch (e) {
+        if (e instanceof Z.NotFoundException || e?.name === 'NotFoundException') return null;
+        throw e;
+      }
+    }
+  };
+}
+
 /** Otevře náhled kamery a vrátí první přečtený kód, nebo null (Zrušit, chyba, odchod z aplikace). */
 function skenujKamerou() {
   return new Promise((hotovo) => {
+    const diag = diagnostikaZapnuta();
     const el = document.createElement('div');
     el.className = 'modal';
     el.innerHTML = `<div class="box kamera">
       <b class="titulek">Namiř kameru na čárový kód</b>
       <video playsinline muted></video>
+      <div class="kamera-diag" ${diag ? '' : 'hidden'}>Spouštím kameru…</div>
+      <div class="row kamera-tlacitka">
+        <button class="btn gry" data-prepnout hidden>🔄 Přepnout kameru</button>
+        <button class="btn gry" data-svitilna hidden>🔦 Svítilna</button>
+      </div>
+      ${diag ? `<div class="row kamera-tlacitka"><button class="btn gry" data-motor>Motor ⇄</button>
+        <button class="btn gry" data-odeslat>Odeslat výpis</button></div>` : ''}
       <button class="btn gry block" data-zrusit>Zrušit</button>
     </div>`;
     document.body.appendChild(el);
     const video = el.querySelector('video');
+    const radekDiag = el.querySelector('.kamera-diag');
+    const tlPrepnout = el.querySelector('[data-prepnout]');
+    const tlSvitilna = el.querySelector('[data-svitilna]');
     let stream = null;
-    let ctecka = null;
+    let stopa = null;
+    let motor = null;
+    let svitilna = false;
     let hotovoUz = false;
+    let start = 0;
+    let zapsanoNeprecteno = false;
+    let casovac = null;
 
+    const zastavStream = () => {
+      stream?.getTracks().forEach((t) => t.stop());
+      stream = null;
+      stopa = null;
+      video.srcObject = null;
+    };
+    const popis = () => {
+      const s = stopa?.getSettings?.() || {};
+      const c = stopa?.getCapabilities?.() || {};
+      return `motor ${motor?.nazev || '?'} · video ${video.videoWidth}×${video.videoHeight}`
+        + ` · kamera "${stopa?.label || '?'}" · ostření ${s.focusMode || '–'}${c.torch ? ' · svítilna ano' : ''}`
+        + ` · formáty ${motor?.formaty.join(', ') || '?'}`;
+    };
+    const ukazDiag = () => { radekDiag.textContent = popis(); };
     const priSkryti = () => {
       if (document.visibilityState === 'hidden') konec(null);
     };
     const konec = (kod) => {
       if (hotovoUz) return;
       hotovoUz = true;
+      clearTimeout(casovac);
       // Kameru vždy vypnout – po skenu, Zrušit i odchodu z aplikace.
-      stream?.getTracks().forEach((t) => t.stop());
-      video.srcObject = null;
-      try { ctecka?.reset(); } catch { /* už zastavená */ }
+      zastavStream();
       document.removeEventListener('visibilitychange', priSkryti);
       el.remove();
-      if (kod && navigator.vibrate) navigator.vibrate(60);
+      if (kod) {
+        diagKamera(`přečteno za ${Math.round((Date.now() - start) / 100) / 10} s: "${kod}" (${motor?.nazev})`);
+        if (navigator.vibrate) navigator.vibrate(60);
+      }
       hotovo(kod || null);
     };
+
+    /** Spustí (nebo vymění) stream – vyšší rozlišení, zadní kamera, případně konkrétní zvolená. */
+    const spustStream = async (deviceId) => {
+      zastavStream();
+      const zaklad = { width: { ideal: 1920 }, height: { ideal: 1080 } };
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: deviceId ? { ...zaklad, deviceId: { exact: deviceId } } : { ...zaklad, facingMode: { ideal: 'environment' } },
+          audio: false
+        });
+      } catch (e) {
+        if (!deviceId) throw e;
+        // Zapamatovaná kamera už není (jiné zařízení, odpojená) – výchozí zadní.
+        stream = await navigator.mediaDevices.getUserMedia({ video: { ...zaklad, facingMode: { ideal: 'environment' } }, audio: false });
+      }
+      if (hotovoUz) return zastavStream();
+      stopa = stream.getVideoTracks()[0];
+      video.srcObject = stream;
+      await video.play();
+      const umi = stopa.getCapabilities?.() || {};
+      if (umi.focusMode?.includes('continuous')) {
+        await stopa.applyConstraints({ advanced: [{ focusMode: 'continuous' }] }).catch(() => {});
+      }
+      svitilna = false;
+      tlSvitilna.hidden = !umi.torch;
+      tlSvitilna.classList.remove('on');
+      start = Date.now();
+      zapsanoNeprecteno = false;
+      ukazDiag();
+      diagKamera('spuštěna: ' + popis());
+    };
+
+    const smycka = async () => {
+      if (hotovoUz) return;
+      if (motor && stopa && video.readyState >= 2) {
+        try {
+          const kod = await motor.cti(video);
+          if (kod) return konec(kod);
+        } catch (e) {
+          diagKamera(`chyba čtení (${motor.nazev}): ${e?.message || e}`);
+        }
+        if (!zapsanoNeprecteno && Date.now() - start > NEPRECTENO_MS) {
+          zapsanoNeprecteno = true;
+          diagKamera(`kód se nepřečetl do ${NEPRECTENO_MS / 1000} s – ${popis()}`);
+          if (diag) radekDiag.textContent = popis() + ' · 10 s nic';
+        }
+      }
+      casovac = setTimeout(smycka, motor?.nazev === 'ZXing' ? INTERVAL_ZXING_MS : INTERVAL_DETEKCE_MS);
+    };
+
     // Zrušit je klepnutí – fokus do pole projde (document click po odstranění dialogu).
     el.querySelector('[data-zrusit]').addEventListener('click', () => konec(null));
+    tlPrepnout.addEventListener('click', async () => {
+      try {
+        const kamery = await zadniKamery();
+        const aktualni = stopa?.getSettings?.().deviceId;
+        const dalsi = kamery[(kamery.findIndex((k) => k.deviceId === aktualni) + 1) % kamery.length];
+        if (!dalsi || dalsi.deviceId === aktualni) return toast('Jiná zadní kamera tu není.');
+        try {
+          localStorage.setItem(KLIC_KAMERY, dalsi.deviceId);
+        } catch { /* jen pro tuto chvíli */ }
+        await spustStream(dalsi.deviceId);
+        toast('Kamera: ' + (stopa?.label || dalsi.label || 'další'));
+      } catch (e) {
+        toast('Kameru nejde přepnout: ' + (e?.message || e));
+      }
+    });
+    tlSvitilna.addEventListener('click', () => {
+      svitilna = !svitilna;
+      stopa?.applyConstraints({ advanced: [{ torch: svitilna }] })
+        .then(() => tlSvitilna.classList.toggle('on', svitilna))
+        .catch(() => toast('Svítilnu nejde zapnout.'));
+    });
+    el.querySelector('[data-motor]')?.addEventListener('click', async () => {
+      motor = await vytvorMotor(motor?.nazev === 'BarcodeDetector').catch((e) => {
+        toast(e.message);
+        return motor;
+      });
+      start = Date.now();
+      zapsanoNeprecteno = false;
+      ukazDiag();
+      diagKamera('přepnut motor: ' + popis());
+    });
+    el.querySelector('[data-odeslat]')?.addEventListener('click', () => window.dispatchEvent(new Event('cs:diag-odeslat')));
     document.addEventListener('visibilitychange', priSkryti);
 
     (async () => {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error('Prohlížeč nepodporuje kameru.');
-      if ('BarcodeDetector' in window && (await BarcodeDetector.getSupportedFormats()).length) {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        if (hotovoUz) {
-          stream.getTracks().forEach((t) => t.stop());
-          return;
-        }
-        video.srcObject = stream;
-        await video.play();
-        const detektor = new BarcodeDetector();
-        const smycka = async () => {
-          if (hotovoUz) return;
-          try {
-            const nalezy = await detektor.detect(video);
-            if (nalezy.length) return konec(nalezy[0].rawValue);
-          } catch { /* snímek se nepovedl, zkusit další */ }
-          setTimeout(smycka, 150);
-        };
-        smycka();
-      } else {
-        await nactiZxing();
-        if (hotovoUz) return;
-        ctecka = new window.ZXing.BrowserMultiFormatReader();
-        const vysledek = await ctecka.decodeOnceFromConstraints({ video: { facingMode: 'environment' } }, video);
-        konec(vysledek.getText());
-      }
+      let ulozena = null;
+      try {
+        ulozena = localStorage.getItem(KLIC_KAMERY);
+      } catch { /* bez úložiště výchozí kamera */ }
+      motor = await vytvorMotor(false);
+      await spustStream(ulozena);
+      if (hotovoUz) return;
+      tlPrepnout.hidden = (await zadniKamery()).length < 2;
+      smycka();
     })().catch((e) => {
       if (hotovoUz) return;
+      diagKamera('nejde spustit: ' + (e?.message || e));
       toast('Kameru nejde spustit: ' + (e?.message || e));
       konec(null);
     });
@@ -455,6 +624,7 @@ function skenujKamerou() {
 }
 
 let zxing = null;
+/** ZXing ze service workeru (stáhne se s aplikací do cache – funguje i bez signálu), kontrolní součet ověří prohlížeč. */
 function nactiZxing() {
   if (window.ZXing) return Promise.resolve();
   zxing = zxing || new Promise((hotovo, chyba) => {

@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.4 – 2026-11-05 – Skenování kamerou na různých handheldech
+
+### Změněno
+- Kamera běží na vlastním streamu s **vyšším rozlišením** (`width/height ideal 1920×1080`, `facingMode: environment`);
+  po spuštění **průběžné ostření** (`focusMode: continuous`), jen když ho kamera podle `getCapabilities()` umí.
+- **BarcodeDetector** se vytváří s výčtem formátů `ean_13, ean_8, upc_a, upc_e, code_128, code_39, itf, qr_code`
+  (jen ty, které zařízení podporuje). **ZXing** (záloha) s nápovědami TRY_HARDER a POSSIBLE_FORMATS (stejné formáty),
+  čte celý snímek v plném rozlišení videa (`MultiFormatReader` nad vlastním streamem).
+- **ZXing se stáhne s aplikací** – service worker ho při instalaci uloží do cache (pevná verze 0.21.3 z CDN, kontrolní
+  součet SRI ověřen a sedí); kamera tak funguje i bez signálu. Nová verze aplikace ho převezme ze staré cache.
+
+### Přidáno
+- V dialogu kamery tlačítko **Přepnout kameru** (projde zadní kamery z `enumerateDevices`, volba se pamatuje
+  v zařízení) a **Svítilna** (jen když kamera umí `torch`). Při přepnutí se stará kamera nejdřív vypne.
+- **Diagnostika kamery** (když je zapnutá diagnostika – 5× verze): řádek v dialogu s motorem (BarcodeDetector / ZXing),
+  skutečným rozlišením videa, názvem kamery (`track.label`), ostřením, svítilnou a formáty; tlačítka *Motor ⇄*
+  (přepne BarcodeDetector ↔ ZXing pro srovnání) a *Odeslat výpis*. Do výpisu diagnostiky přibyl oddíl **Kamera**
+  (spuštění, přečtený kód a za jak dlouho, **„kód se nepřečetl do 10 s“** s motorem a rozlišením, chyby čtení) –
+  zapisuje se vždy a *Odeslat výpis* ho uloží do `Log_chyb`.
+
+### Neměnné
+- Pravidla skenování z `CLAUDE.md`: kamera jen za tlačítkem 📷, po skenu, Zrušit i odchodu z aplikace se vždy vypne
+  (zastaví se všechny stopy streamu).
+
 ## 0.4.3 – 2026-11-02 – Kódy zboží nejen EAN
 
 ### Změněno

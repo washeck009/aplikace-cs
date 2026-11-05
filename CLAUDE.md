@@ -93,6 +93,8 @@ kdy se skeny ztrácely (fungoval jen první sken). Při jakékoliv úpravě sken
    Pauzou se ukončí jen **rychlý vstup** (celý text najednou přes IME, nebo znaky do ~50 ms po sobě); pomalé
    ruční psaní do pole ukončí jen Enter nebo tlačítko OK (od verze 0.3.1).
 6. **Kamera jen za tlačítkem 📷** a po skenu, Zrušit i odchodu z aplikace se vždy vypne (zastavit všechny stopy streamu – `track.stop()`).
+   Při přepnutí kamery nejdřív zastavit starý stream. ZXing se načítá z cache service workeru (pevná verze z CDN + SRI),
+   ne až při otevření kamery ze sítě.
 
 Ladění na čtečce: diagnostika je v aplikaci skrytá; zapne se 5× klepnutím na číslo verze v rozcestníku (události
 klávesnice/IME, stav fokusu, přepínač režimu C/B, *Odeslat výpis* do listu `Log_chyb`). Ve výchozím stavu je vypnutá

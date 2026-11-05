@@ -428,3 +428,8 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
   *Režim pole* C (výchozí, klávesnice nevyskakuje) / B (obyčejné pole) – kdyby C na některé čtečce nefungoval
   (pamatuje se v zařízení).
   *Odeslat výpis* uloží výpis do listu `Log_chyb` v tabulce (akce `diagnostika skenování`), *Kopírovat* do schránky.
+- **Diagnostika kamery** (od 0.4.4, se zapnutou diagnostikou): v dialogu 📷 je řádek s motorem (BarcodeDetector /
+  ZXing), rozlišením videa, názvem kamery, ostřením a formáty, tlačítka *Motor ⇄* (porovnat oba motory) a *Odeslat
+  výpis*. Ve výpisu je oddíl *Kamera* – mimo jiné „kód se nepřečetl do 10 s“ s motorem a rozlišením.
+  Když kamera na některém handheldu kód nesejme: zapni diagnostiku, zkus *Přepnout kameru*, *Svítilnu* a *Motor ⇄*,
+  pak *Odeslat výpis* a pošli čas – v `Log_chyb` bude vidět, co zařízení umí.
