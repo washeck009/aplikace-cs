@@ -1,5 +1,29 @@
 # Changelog
 
+## 0.4.5 – 2026-11-11 – Rychlejší a spolehlivější přihlášení a volání serveru
+
+### Přidáno
+- **Probuzení serveru:** při otevření aplikace (i na přihlašovací obrazovce) a po návratu z pozadí po víc než 5 min
+  se na pozadí pošle lehké volání `ping` (nečte tabulku) – Apps Script je připravený, než uživatel zadá PIN.
+- **Měření:** diagnostika (5× verze) ukazuje u posledních 15 volání API dobu v ms, výsledek a opakování; server zapíše
+  do `Log_chyb` každé volání delší než 10 s („Pomalé volání: … ms“).
+
+### Změněno
+- **Méně volání:** `uzivatele.seznam` s `{podrobne: true}` vrací i `pin_nastaven` – po výběru jména už se nevolá
+  `login.info`. Seznam si aplikace pamatuje v zařízení, ukáže ho hned a obnoví na pozadí. (Bez parametru vrací jen
+  jména – starší verze aplikace fungují dál.)
+- **Automatické opakování:** čtecí volání a přihlášení se při chybě sítě, vypršení času nebo HTTP chybě jednou samy
+  zopakují (po 1 s). Při čekání na přihlášení se po 2,5 s ukáže „Přihlašuji… (server se probouzí)“.
+- **Rozlišené hlášky:** bez spojení / offline (`SIT`), vypršel čas (`CAS`), server dočasně nedostupný (`HTTP`),
+  zaneprázdněno (`ZANEPRAZDNENO` – zámek nebo limit Googlu). Offline fronta opakuje i `CAS` a `HTTP`.
+- **Přihlášení bez globálního zámku a bez čtení celých Script Properties:** ověření PINu neblokuje ani nečeká na zápisy
+  jiných; zámek jen na zápis chybného pokusu (nad čerstvým řádkem) a vynulování pokusů. Prošlé tokeny uklízí denně
+  plánovač (a setup), ne každé přihlášení.
+- **Idempotence dávek z čtečky** (a Vydáno / Zlikvidováno) už není ve Script Properties (limit 500 kB): nový sloupec
+  **`Kontroly.id_davky`** + výsledek v `CacheService` (6 h). Opakované odeslání se najde v cache, jinak v listu přes
+  TextFinder (nečte celý list) – nic se nezdvojí. Dávky zpracované starší verzí se ještě poznají podle jednoho klíče
+  ve Script Properties; ty pak plánovač / setup smaže.
+
 ## 0.4.4 – 2026-11-05 – Skenování kamerou na různých handheldech
 
 ### Změněno

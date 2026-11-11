@@ -12,6 +12,7 @@
  */
 function mapaAkci_() {
   return {
+    'ping': { fn: akcePing_ },
     'uzivatele.seznam': { fn: akceSeznamUzivatelu_ },
     'login': { fn: akceLogin_ },
     'login.info': { fn: akceLoginInfo_ },
@@ -54,8 +55,10 @@ function mapaAkci_() {
 }
 
 function doPost(e) {
+  const zacatek = Date.now();
   let pozadavek = {};
   let uzivatel = null;
+  let odpoved;
   try {
     try {
       pozadavek = JSON.parse((e && e.postData && e.postData.contents) || '{}');
@@ -69,12 +72,22 @@ function doPost(e) {
       const smi = akce.role ? maRoli_(uzivatel, akce.role) : !akce.opravneni || maOpravneni_(uzivatel, akce.opravneni);
       if (!smi) throw chyba_('Na tuto akci nemáš oprávnění.', 'ROLE');
     }
-    return odpoved_({ ok: true, data: akce.fn(pozadavek.data || {}, uzivatel) });
+    odpoved = { ok: true, data: akce.fn(pozadavek.data || {}, uzivatel) };
   } catch (err) {
-    if (err && err.kod) return odpoved_({ ok: false, error: err.message, kod: err.kod });
-    zalogujChybu_(pozadavek.action, err, uzivatel && uzivatel.jmeno);
-    return odpoved_({ ok: false, error: 'Chyba na serveru: ' + ((err && err.message) || err), kod: 'SERVER' });
+    if (err && err.kod) {
+      odpoved = { ok: false, error: err.message, kod: err.kod };
+    } else {
+      zalogujChybu_(pozadavek.action, err, uzivatel && uzivatel.jmeno);
+      odpoved = { ok: false, error: 'Chyba na serveru: ' + ((err && err.message) || err), kod: 'SERVER' };
+    }
   }
+  // Měření: volání delší než POMALE_VOLANI_MS do Log_chyb (probouzení serveru, pomalá tabulka).
+  const trvani = Date.now() - zacatek;
+  if (trvani > POMALE_VOLANI_MS) {
+    zalogujChybu_(pozadavek.action, 'Pomalé volání: ' + trvani + ' ms (' + (odpoved.ok ? 'OK' : odpoved.kod) + ')',
+      uzivatel && uzivatel.jmeno);
+  }
+  return odpoved_(odpoved);
 }
 
 /** Otevření adresy v prohlížeči – jen kontrola, že nasazení funguje. */

@@ -43,6 +43,7 @@ function setup(jmenoAdmina, pinAdmina) {
     doplnNastaveni_();
     doplnOpravneni_();
   });
+  uklidVlastnosti_(); // prošlé tokeny a záznamy dávek ze Script Properties (do verze 0.4.4)
 
   const maAdmina = nactiList_('Uzivatele').radky.some(function (u) {
     return roleUzivatele_(u) === 'admin' && jeAno_(u.aktivni, true);

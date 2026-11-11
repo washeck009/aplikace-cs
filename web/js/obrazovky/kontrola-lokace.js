@@ -1,6 +1,6 @@
 // Expirace – Kontrola lokace: sken lokace → evidované zboží (✓ / ✗ / ✎) → přidání zboží → Lokace hotová.
 // Všechny změny jedné lokace odejdou jednou dávkou přes offline frontu (lokace.dokonci).
-import { volej } from '../api.js';
+import { jeBezSite, volej } from '../api.js';
 import { nactiZaklad, ulozZaklad } from '../db.js';
 import {
   jeKodLokace, jeKodZbozi, kanonickyKod, klicKodu, kratkeDatum, napojPoleExpirace, nazevZbozi, normalizujKod, pasmo,
@@ -173,7 +173,7 @@ async function nactiZeServeru(kod, cislo) {
   } catch (e) {
     if (cislo !== cisloNacteni || !s.lokace || e.kod === 'TOKEN') return;
     s.lokace.nacita = false;
-    s.lokace.zprava = e.kod === 'SIT'
+    s.lokace.zprava = jeBezSite(e)
       ? `Bez signálu – zobrazuji stav uložený v zařízení (staženo ${kratkyCas(s.zaklad.stazeno)}). Změny se odešlou později.`
       : e.message;
   }

@@ -40,25 +40,33 @@ function maPin_(u) {
   return !!text_(u.pin_hash) && !!text_(u.pin_salt);
 }
 
+function overNezamceno_(u) {
+  if (u.zamceno_do instanceof Date && u.zamceno_do > new Date()) {
+    throw chyba_('Účet je zamčený do ' + cas_(u.zamceno_do) + ' (příliš mnoho chybných PINů).', 'ZAMCENO');
+  }
+}
+
+const pinSedi_ = function (u, pin) { return hashPinu_(String(pin), text_(u.pin_salt)) === text_(u.pin_hash); };
+
+/** Započítá chybný PIN (volat pod zámkem) – po ZAMEK_POKUSU zamkne účet. Vždy vyhodí chybu pro uživatele. */
+function zapocitejChybnyPin_(u) {
+  const pokusy = (Number(u.chybne_pokusy) || 0) + 1;
+  if (pokusy >= ZAMEK_POKUSU) {
+    const zamekDo = new Date(Date.now() + ZAMEK_MINUT * 60000);
+    upravRadek_('Uzivatele', u._radek, { chybne_pokusy: 0, zamceno_do: zamekDo });
+    throw chyba_('Špatný PIN. Účet je zamčený na ' + ZAMEK_MINUT + ' minut (do ' + cas_(zamekDo) + ').', 'ZAMCENO');
+  }
+  upravRadek_('Uzivatele', u._radek, { chybne_pokusy: pokusy });
+  throw chyba_('Špatný PIN. Zbývá pokusů: ' + (ZAMEK_POKUSU - pokusy) + '.', 'PIN');
+}
+
 /**
- * Ověří PIN uživatele (volat pod zámkem). Při chybě započítá pokus a po ZAMEK_POKUSU zamkne účet;
+ * Ověří PIN uživatele (volat pod zámkem – změna PINu). Při chybě započítá pokus a po ZAMEK_POKUSU zamkne účet;
  * vyhodí chybu pro uživatele. Při úspěchu vynuluje pokusy.
  */
 function overPinUzivatele_(u, pin) {
-  const ted = new Date();
-  if (u.zamceno_do instanceof Date && u.zamceno_do > ted) {
-    throw chyba_('Účet je zamčený do ' + cas_(u.zamceno_do) + ' (příliš mnoho chybných PINů).', 'ZAMCENO');
-  }
-  if (hashPinu_(String(pin), text_(u.pin_salt)) !== text_(u.pin_hash)) {
-    const pokusy = (Number(u.chybne_pokusy) || 0) + 1;
-    if (pokusy >= ZAMEK_POKUSU) {
-      const zamekDo = new Date(ted.getTime() + ZAMEK_MINUT * 60000);
-      upravRadek_('Uzivatele', u._radek, { chybne_pokusy: 0, zamceno_do: zamekDo });
-      throw chyba_('Špatný PIN. Účet je zamčený na ' + ZAMEK_MINUT + ' minut (do ' + cas_(zamekDo) + ').', 'ZAMCENO');
-    }
-    upravRadek_('Uzivatele', u._radek, { chybne_pokusy: pokusy });
-    throw chyba_('Špatný PIN. Zbývá pokusů: ' + (ZAMEK_POKUSU - pokusy) + '.', 'PIN');
-  }
+  overNezamceno_(u);
+  if (!pinSedi_(u, pin)) zapocitejChybnyPin_(u);
   if (u.chybne_pokusy || u.zamceno_do) upravRadek_('Uzivatele', u._radek, { chybne_pokusy: 0, zamceno_do: '' });
 }
 
@@ -119,7 +127,7 @@ function vytvorToken_(uzivatel) {
   const token = Utilities.getUuid().replace(/-/g, '') + Utilities.getUuid().replace(/-/g, '');
   const platnost = konecDne_();
   const vlastnosti = PropertiesService.getScriptProperties();
-  uklidTokeny_(vlastnosti);
+  // Prošlé tokeny se uklízejí denně (uklidVlastnosti_) – přihlášení nečte celé Script Properties.
   vlastnosti.setProperty(PREFIX_TOKENU + sha256Hex_(token),
     JSON.stringify({ id: text_(uzivatel.id), platnost: platnost.getTime() }));
   return {
@@ -132,18 +140,30 @@ function vytvorToken_(uzivatel) {
   };
 }
 
-/** Smaže tokeny, kterým skončila platnost. */
-function uklidTokeny_(vlastnosti) {
+/**
+ * Denní úklid Script Properties (plánovač, setup): prošlé tokeny a záznamy dávek z verzí do 0.4.4
+ * (idempotence je teď ve sloupci Kontroly.id_davky). Vrátí počet smazaných klíčů.
+ */
+function uklidVlastnosti_() {
+  const vlastnosti = PropertiesService.getScriptProperties();
   const vse = vlastnosti.getProperties();
   const ted = Date.now();
+  let smazano = 0;
   Object.keys(vse).forEach(function (k) {
-    if (k.indexOf(PREFIX_TOKENU) !== 0) return;
-    try {
-      if (JSON.parse(vse[k]).platnost < ted) vlastnosti.deleteProperty(k);
-    } catch (e) {
+    let smazat = k.indexOf(PREFIX_DAVKY) === 0;
+    if (k.indexOf(PREFIX_TOKENU) === 0) {
+      try {
+        smazat = JSON.parse(vse[k]).platnost < ted;
+      } catch (e) {
+        smazat = true;
+      }
+    }
+    if (smazat) {
       vlastnosti.deleteProperty(k);
+      smazano++;
     }
   });
+  return smazano;
 }
 
 /** Zruší všechna přihlášení uživatele (po změně PINu). */
@@ -187,27 +207,50 @@ function overToken_(token) {
 
 /* ---------- Akce API ---------- */
 
-/** Jména aktivních uživatelů pro přihlašovací obrazovku (nic dalšího). */
-function akceSeznamUzivatelu_() {
-  return nactiList_('Uzivatele').radky
-    .filter(function (u) { return jeAno_(u.aktivni, true) && text_(u.jmeno); })
-    .map(function (u) { return text_(u.jmeno); })
-    .sort(function (a, b) { return a.localeCompare(b, 'cs'); });
+/** Probuzení serveru po otevření aplikace – nic nečte, jen ať je Apps Script připravený, než uživatel zadá PIN. */
+function akcePing_() {
+  return { cas: new Date().toISOString() };
 }
 
-/** Jméno + PIN → token platný do konce dne. Po 5 chybách zámek na 10 minut. */
+/**
+ * Jména aktivních uživatelů pro přihlašovací obrazovku. {podrobne: true} → [{jmeno, pin_nastaven}] (od 0.4.5,
+ * odpadne login.info); bez něj jen jména (starší verze aplikace).
+ */
+function akceSeznamUzivatelu_(data) {
+  const uzivatele = nactiList_('Uzivatele').radky
+    .filter(function (u) { return jeAno_(u.aktivni, true) && text_(u.jmeno); })
+    .sort(function (a, b) { return text_(a.jmeno).localeCompare(text_(b.jmeno), 'cs'); });
+  if (data && data.podrobne) {
+    return uzivatele.map(function (u) { return { jmeno: text_(u.jmeno), pin_nastaven: maPin_(u) }; });
+  }
+  return uzivatele.map(function (u) { return text_(u.jmeno); });
+}
+
+/**
+ * Jméno + PIN → token platný do konce dne. Po 5 chybách zámek na 10 minut.
+ * Ověření běží bez globálního zámku (nečeká na zápisy jiných); zámek jen na zápis chybného pokusu / jeho vynulování.
+ */
 function akceLogin_(data) {
   const jmeno = text_(data.jmeno);
   const pin = String(data.pin || '');
   if (!jmeno || !platnyPin_(pin)) throw chyba_('Vyber jméno a zadej 4místný PIN.');
 
-  return sZamkem_(function () {
-    const u = najdiUzivatele_(jmeno);
-    if (!u) throw chyba_('Neplatné jméno nebo PIN.', 'PIN');
-    if (!maPin_(u)) throw chyba_('Ještě nemáš nastavený PIN – nastav si ho.', 'BEZ_PINU');
-    overPinUzivatele_(u, pin);
-    return vytvorToken_(u);
-  });
+  const u = najdiUzivatele_(jmeno);
+  if (!u) throw chyba_('Neplatné jméno nebo PIN.', 'PIN');
+  if (!maPin_(u)) throw chyba_('Ještě nemáš nastavený PIN – nastav si ho.', 'BEZ_PINU');
+  overNezamceno_(u);
+  if (!pinSedi_(u, pin)) {
+    sZamkem_(function () {
+      // Počet pokusů z čerstvého řádku – mezitím mohl zapsat jiný pokus.
+      const cerstvy = nactiList_('Uzivatele').radky.filter(function (r) { return text_(r.id) === text_(u.id); })[0] || u;
+      overNezamceno_(cerstvy);
+      zapocitejChybnyPin_(cerstvy);
+    });
+  }
+  if (u.chybne_pokusy || u.zamceno_do) {
+    sZamkem_(function () { upravRadek_('Uzivatele', u._radek, { chybne_pokusy: 0, zamceno_do: '' }); });
+  }
+  return vytvorToken_(u);
 }
 
 /** Po výběru jména: má uživatel PIN? Bez PINu ukáže aplikace „Nastav si PIN“. */

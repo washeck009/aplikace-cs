@@ -1,42 +1,65 @@
 // Přihlášení: 1) výběr jména ze seznamu, 2) PIN na klávesnici. Poslední uživatel se pamatuje.
 // Uživatel bez PINu (nový nebo po resetu) si místo zadání PINu PIN nastaví: nový PIN 2× → uloží se → přihlášen.
+// Seznam jmen (i s tím, kdo má PIN) se pamatuje v zařízení – ukáže se hned a na pozadí se obnoví.
 import { volej } from '../api.js';
 import { chybaNovehoPinu } from '../pin.js';
-import { posledniJmeno, ulozPosledniJmeno, ulozRelaci } from '../uloziste.js';
+import { posledniJmeno, ulozenySeznamUzivatelu, ulozPosledniJmeno, ulozRelaci, ulozSeznamUzivatelu } from '../uloziste.js';
 import { esc, hlavicka, prejdi } from '../ui.js';
 
 const KLAVESY = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '⌫', '0', 'OK'];
+const PROBOUZENI_MS = 2500; // po této době čekání na server hláška „server se probouzí“
 
 let koren = null;
 let stav = {};
 
+/** Položka seznamu: {jmeno, pin_nastaven} (starší server vrací jen jména – pin_nastaven pak neznámé). */
+const polozka = (u) => (typeof u === 'string' ? { jmeno: u, pin_nastaven: undefined } : u);
+const najdi = (jmeno) => stav.jmena?.find((u) => u.jmeno === jmeno);
+
 export function zobrazPrihlaseni(el) {
   koren = el;
+  const ulozene = ulozenySeznamUzivatelu();
   stav = {
-    jmena: null, chybaSeznamu: null, vybrane: posledniJmeno(), pin: '', zprava: '', chybaPinu: false, overuji: false,
+    jmena: Array.isArray(ulozene) ? ulozene.map(polozka) : null, chybaSeznamu: null, vybrane: posledniJmeno(),
+    pin: '', zprava: '', chybaPinu: false, overuji: false,
     // rezim: 'nacitam' (zjišťuje se, jestli má PIN) | 'pin' (přihlášení) | 'nastav' (nastavení nového PINu)
     rezim: 'nacitam', prvniPin: ''
   };
+  if (stav.vybrane) zjistiPin();
   vykresli();
   nactiJmena();
-  if (stav.vybrane) zjistiPin();
 }
 
+/** Seznam ze serveru (na pozadí) – uloží se do zařízení; obrazovka se překreslí, jen když se něco změnilo. */
 async function nactiJmena() {
   stav.chybaSeznamu = null;
+  const predtim = JSON.stringify(stav.jmena);
   try {
-    stav.jmena = await volej('uzivatele.seznam', {}, { token: '' });
+    const seznam = (await volej('uzivatele.seznam', { podrobne: true }, { token: '' })).map(polozka);
+    ulozSeznamUzivatelu(seznam);
+    stav.jmena = seznam;
     // Zapamatovaný uživatel mezitím zmizel ze seznamu → zpět na výběr jména.
-    if (stav.vybrane && !stav.jmena.includes(stav.vybrane)) stav.vybrane = null;
+    if (stav.vybrane && !najdi(stav.vybrane)) stav.vybrane = null;
+    else if (stav.vybrane && !stav.overuji && !stav.pin && !stav.prvniPin) zjistiPin({ prekreslit: false });
   } catch (e) {
-    stav.chybaSeznamu = e.message;
+    // S uloženým seznamem se dá pokračovat – přihlášení samo řekne, co je se serverem.
+    if (!stav.jmena) stav.chybaSeznamu = e.message;
   }
-  if (koren && !stav.vybrane) vykresli();
+  if (koren && !stav.overuji && (JSON.stringify(stav.jmena) !== predtim || stav.chybaSeznamu || !stav.vybrane)) vykresli();
 }
 
-/** Má vybraný uživatel PIN? Bez signálu se ukáže zadání PINu (přihlášení stejně potřebuje server). */
-async function zjistiPin() {
+/**
+ * Má vybraný uživatel PIN? Ze seznamu (bez dalšího volání); u staršího serveru / neznámého jména login.info.
+ * Bez signálu se ukáže zadání PINu (přihlášení stejně potřebuje server).
+ */
+async function zjistiPin({ prekreslit = true } = {}) {
   const jmeno = stav.vybrane;
+  const znamy = najdi(jmeno);
+  if (typeof znamy?.pin_nastaven === 'boolean') {
+    stav.rezim = znamy.pin_nastaven ? 'pin' : 'nastav';
+    if (koren && prekreslit) vykresli();
+    return;
+  }
   stav.rezim = 'nacitam';
   try {
     const info = await volej('login.info', { jmeno }, { token: '' });
@@ -84,7 +107,7 @@ function krokJmeno() {
   } else if (!stav.jmena.length) {
     obsah = '<p class="hint">Zatím tu nejsou žádní uživatelé. Správce je založí v tabulce (menu Aplikace CS).</p>';
   } else {
-    obsah = `<div class="users">${stav.jmena.map((j) => `<button data-jmeno="${esc(j)}">${esc(j)}</button>`).join('')}</div>`;
+    obsah = `<div class="users">${stav.jmena.map((u) => `<button data-jmeno="${esc(u.jmeno)}">${esc(u.jmeno)}</button>`).join('')}</div>`;
   }
   return `<div class="h">Kdo jsi?</div>${obsah}`;
 }
@@ -171,13 +194,20 @@ async function prihlas() {
 /** Login / nastavení PINu → uložit přihlášení a na rozcestník. Chybu ukáže pod tečkami. */
 async function odesli(akce, data) {
   stav.overuji = true;
-  stav.zprava = akce === 'login' ? 'Ověřuji…' : 'Ukládám PIN…';
+  stav.zprava = akce === 'login' ? 'Přihlašuji…' : 'Ukládám PIN…';
   stav.chybaPinu = false;
   aktualizujPin();
+  // Apps Script po nečinnosti startuje i několik sekund (a login se při výpadku jednou sám zopakuje).
+  const probouzeni = setTimeout(() => {
+    if (!stav.overuji) return;
+    stav.zprava = (akce === 'login' ? 'Přihlašuji…' : 'Ukládám PIN…') + ' (server se probouzí)';
+    aktualizujPin();
+  }, PROBOUZENI_MS);
   try {
     const r = await volej(akce, data, { token: '' });
     ulozRelaci({ ...r, prihlaseno: new Date().toISOString() });
     ulozPosledniJmeno(r.jmeno);
+    if (akce === 'pin.nastav') zapamatujPin(r.jmeno, true);
     koren = null;
     prejdi('#/');
     return;
@@ -186,16 +216,27 @@ async function odesli(akce, data) {
     stav.zprava = e.message;
     stav.chybaPinu = true;
     stav.overuji = false;
-    // PIN mezitím někdo resetoval / nastavil → přepnout režim.
+    // PIN mezitím někdo resetoval / nastavil → přepnout režim (a opravit uložený seznam).
     if (e.kod === 'BEZ_PINU' || e.kod === 'PIN_NASTAVEN') {
+      zapamatujPin(stav.vybrane, e.kod === 'PIN_NASTAVEN');
       stav.rezim = e.kod === 'BEZ_PINU' ? 'nastav' : 'pin';
       stav.prvniPin = '';
       vykresli();
       return;
     }
     if (akce === 'pin.nastav') stav.prvniPin = '';
+  } finally {
+    clearTimeout(probouzeni);
   }
   vykresli();
+}
+
+/** Opraví v uloženém seznamu, jestli má uživatel PIN (po nastavení PINu nebo když server řekne opak). */
+function zapamatujPin(jmeno, pinNastaven) {
+  const u = najdi(jmeno);
+  if (!u) return;
+  u.pin_nastaven = pinNastaven;
+  ulozSeznamUzivatelu(stav.jmena);
 }
 
 // Fyzická klávesnice (čtečka Urovo má číselnou klávesnici).

@@ -251,23 +251,79 @@ function akceLokaceDokonci_(data, uzivatel) {
   if (radky.length > 500) throw chyba_('Dávka je příliš velká.');
 
   return sZamkem_(function () {
-    const vlastnosti = PropertiesService.getScriptProperties();
-    const klicDavky = PREFIX_DAVKY + idDavky;
-    const zpracovana = vlastnosti.getProperty(klicDavky);
-    if (zpracovana) return JSON.parse(zpracovana).vysledek;
+    zajistiSloupce_('Kontroly');
+    const zpracovana = zpracovanaDavka_(idDavky, function (radkyKontrol) {
+      return vysledekDavkyZRadku_(radkyKontrol, podnik, uzivatel.jmeno);
+    });
+    if (zpracovana) return zpracovana;
 
     const ted = new Date();
-    const vysledek = zpracujDavku_(podnik, kod, data.typ, radky, casDavky_(data.cas, ted), uzivatel.jmeno, ted);
-
-    // Nejdřív zapsat do tabulky, teprve potom označit dávku jako zpracovanou.
+    const vysledek = zpracujDavku_(podnik, kod, data.typ, radky, casDavky_(data.cas, ted), uzivatel.jmeno, ted, idDavky);
     SpreadsheetApp.flush();
-    uklidDavky_(vlastnosti, ted);
-    vlastnosti.setProperty(klicDavky, JSON.stringify({ cas: ted.getTime(), vysledek: vysledek }));
+    ulozDavkuDoCache_(idDavky, vysledek);
     return vysledek;
   });
 }
 
-function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
+/* ---------- Idempotence dávek (opakované odeslání z offline fronty nic nezdvojí) ---------- */
+
+/**
+ * Výsledek už zpracované dávky / akce, nebo null. Hledá se v CacheService (6 h), u starých dávek v jednom klíči
+ * Script Properties (do verze 0.4.4) a nakonec ve sloupci Kontroly.id_davky (TextFinder – nečte celý list);
+ * z nalezených řádků výsledek sestaví `sestav(radky)`.
+ */
+function zpracovanaDavka_(idDavky, sestav) {
+  const klic = PREFIX_DAVKY + idDavky;
+  try {
+    const vCache = CacheService.getScriptCache().get(klic);
+    if (vCache) return JSON.parse(vCache);
+  } catch (e) { /* cache je jen zrychlení */ }
+  const stara = PropertiesService.getScriptProperties().getProperty(klic);
+  if (stara) return JSON.parse(stara).vysledek;
+  const radky = radkyDavky_(idDavky);
+  return radky.length ? sestav(radky) : null;
+}
+
+function ulozDavkuDoCache_(idDavky, vysledek) {
+  try {
+    CacheService.getScriptCache().put(PREFIX_DAVKY + idDavky, JSON.stringify(vysledek), CACHE_DAVKY_S);
+  } catch (e) { /* idempotenci drží i list Kontroly */ }
+}
+
+/** Řádky listu Kontroly s daným id_davky (zapisují se pohromadě, čte se jen jejich úsek). */
+function radkyDavky_(idDavky) {
+  const list = list_('Kontroly');
+  const hlavicka = hlavickaListu_(list);
+  const c = hlavicka.indexOf('id_davky');
+  const posledni = list.getLastRow();
+  if (c < 0 || posledni < 2) return [];
+  const nalezy = list.getRange(2, c + 1, posledni - 1, 1).createTextFinder(idDavky).matchEntireCell(true).findAll();
+  if (!nalezy.length) return [];
+  const cisla = nalezy.map(function (r) { return r.getRow(); });
+  const od = Math.min.apply(null, cisla);
+  const hodnoty = list.getRange(od, 1, Math.max.apply(null, cisla) - od + 1, hlavicka.length).getValues();
+  return hodnoty.map(function (r) {
+    const o = {};
+    hlavicka.forEach(function (h, j) { if (h) o[h] = r[j]; });
+    return o;
+  }).filter(function (o) { return text_(o.id_davky) === idDavky; });
+}
+
+/** Výsledek dávky z jejích řádků v Kontroly (když výsledek už není v cache) – souhrn, započtení, dnešní počet. */
+function vysledekDavkyZRadku_(radky, podnik, jmeno) {
+  const souhrn = { potvrzeno: 0, neni: 0, zmena: 0, novy: 0, vydano: 0, zlikvidovano: 0, preskoceno: 0 };
+  const podleAkce = { 'potvrzeno': 'potvrzeno', 'není na lokaci': 'neni', 'změna': 'zmena', 'nový': 'novy',
+    'vydáno': 'vydano', 'zlikvidováno': 'zlikvidovano' };
+  radky.forEach(function (r) { if (podleAkce[text_(r.akce)]) souhrn[podleAkce[text_(r.akce)]]++; });
+  const dnes = zacatekDne_(new Date());
+  return {
+    lokace: text_(radky[0].lokace), zapocteno: radky.some(function (r) { return jeAno_(r.zapocteno); }),
+    dnes: pocetZapoctenych_(kontrolyOd_(dnes), podnik, jmeno, dnes), nova_lokace: false, souhrn: souhrn,
+    ukoly_splnene: [], opakovano: true
+  };
+}
+
+function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted, idDavky) {
   const lokace = najdiLokaci_(nactiList_('Lokace').radky, podnik, kod);
   const kodLokace = lokace ? text_(lokace.kod) : kod;
 
@@ -470,6 +526,7 @@ function zpracujDavku_(podnik, kod, typ, radky, cas, jmeno, ted) {
     k.podnik = podnik;
     k.lokace = kodLokace;
     k.id_ukolu = ukoly.ids.join(',');
+    k.id_davky = idDavky || '';
     k.zapocteno = i === 0 && !uzZapocteno;
   });
 
@@ -501,10 +558,12 @@ function akceZaznamStav_(data, uzivatel) {
   if (stav !== STAV.VYDANO && stav !== STAV.ZLIKVIDOVANO) throw chyba_('Neplatný stav: ' + stav);
 
   return sZamkem_(function () {
-    const vlastnosti = PropertiesService.getScriptProperties();
-    const klic = PREFIX_DAVKY + idAkce;
-    const zpracovana = vlastnosti.getProperty(klic);
-    if (zpracovana) return JSON.parse(zpracovana).vysledek;
+    zajistiSloupce_('Kontroly');
+    const zpracovana = zpracovanaDavka_(idAkce, function (radky) {
+      return { id: text_(radky[0].id_zaznamu), stav: text_(radky[0].akce) === 'vydáno' ? STAV.VYDANO : STAV.ZLIKVIDOVANO,
+        lokace: text_(radky[0].lokace), opakovano: true };
+    });
+    if (zpracovana) return zpracovana;
 
     const ted = new Date();
     const cas = casDavky_(data.cas, ted);
@@ -518,25 +577,11 @@ function akceZaznamStav_(data, uzivatel) {
     pridejRadky_('Kontroly', [{
       id: noveId_(), cas: cas, uzivatel: uzivatel.jmeno, podnik: podnik, lokace: text_(r.lokace), id_zaznamu: text_(r.id),
       akce: stav === STAV.VYDANO ? 'vydáno' : 'zlikvidováno', pocet_ks: r.pocet_ks, poznamka: POZNAMKA_BLIZI_SE,
-      id_ukolu: '', zapocteno: false
+      id_ukolu: '', zapocteno: false, id_davky: idAkce
     }]);
     const vysledek = { id: text_(r.id), stav: stav, lokace: text_(r.lokace) };
     SpreadsheetApp.flush();
-    uklidDavky_(vlastnosti, ted);
-    vlastnosti.setProperty(klic, JSON.stringify({ cas: ted.getTime(), vysledek: vysledek }));
+    ulozDavkuDoCache_(idAkce, vysledek);
     return vysledek;
-  });
-}
-
-/** Smaže záznamy o zpracovaných dávkách starší než DAVKY_DRZET_DNI. */
-function uklidDavky_(vlastnosti, ted) {
-  const vse = vlastnosti.getProperties();
-  Object.keys(vse).forEach(function (k) {
-    if (k.indexOf(PREFIX_DAVKY) !== 0) return;
-    try {
-      if (ted.getTime() - JSON.parse(vse[k]).cas > DAVKY_DRZET_DNI * DEN_MS) vlastnosti.deleteProperty(k);
-    } catch (e) {
-      vlastnosti.deleteProperty(k);
-    }
   });
 }

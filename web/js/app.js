@@ -1,5 +1,5 @@
 // Start aplikace: výběr obrazovky podle adresy (#/...), kontrola přihlášení, offline fronta, service worker.
-import { volej } from './api.js';
+import { probudServer, volej } from './api.js';
 import { obnovDiagnostiku } from './diagnostika.js';
 import { odesliFrontu } from './fronta.js';
 import { odpojSkener } from './skener.js';
@@ -76,7 +76,17 @@ window.addEventListener('cs:davka-odeslana', (e) => {
 });
 
 obnovDiagnostiku();
+// Probudit Apps Script hned při otevření (i na přihlašovací obrazovce) – než uživatel zadá PIN, je připravený.
+probudServer();
 vykresli();
+
+// Po delší nečinnosti (aplikace na pozadí) server zase usne – při návratu ho probudit dopředu.
+const PROBUDIT_PO_MS = 5 * 60 * 1000;
+let skryto = 0;
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') skryto = Date.now();
+  else if (skryto && Date.now() - skryto > PROBUDIT_PO_MS) probudServer();
+});
 
 // Ověření přihlášení na serveru (účet mohl být deaktivován, role nebo oprávnění změněny). Bez signálu se nic neděje.
 if (relace()) {

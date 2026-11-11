@@ -207,6 +207,26 @@ Nová verze webu se na čtečku dostane sama: při spuštění se na pozadí st�
 
 ---
 
+## Přechod na verzi 0.4.5 (rychlejší přihlášení, pro už nasazenou verzi 0.4.3 / 0.4.4)
+
+Web (verze **0.4.5**) se nasadí sám po pushi do `main`. (Verze 0.4.4 – kamera – Apps Script neměnila.) V Apps Scriptu:
+
+1. V tabulce **Rozšíření → Apps Script**.
+2. **Nahraď celý obsah** šesti souborů verzí z repa: [`Api.gs`](apps-script/Api.gs), [`Auth.gs`](apps-script/Auth.gs),
+   [`Konfigurace.gs`](apps-script/Konfigurace.gs), [`Kontrola.gs`](apps-script/Kontrola.gs),
+   [`Planovac.gs`](apps-script/Planovac.gs), [`Setup.gs`](apps-script/Setup.gs). Ostatní se nezměnily. Ulož (Ctrl+S).
+3. Vrať se do tabulky, **obnov stránku** (F5) a spusť **Aplikace CS → Založit / doplnit listy (setup)** – do listu
+   `Kontroly` přidá sloupec `id_davky` a ze Script Properties smaže prošlé tokeny a záznamy dávek ze starších verzí.
+   (Sloupec by se doplnil i sám při první dávce, úklid by udělal plánovač v 5:30.)
+4. **Nasadit → Spravovat nasazení** → tužka → *Verze: **Nová verze*** → **Nasadit**. URL zůstane stejná.
+5. Na čtečkách a PC aplikaci dvakrát zavři a otevři – verze **0.4.5**.
+
+Pořadí nasazení webu a Apps Scriptu nevadí – starší aplikace s novým serverem i nová aplikace se starým serverem
+fungují (jen bez nových zrychlení). Doby volání uvidíš v diagnostice (5× verze, oddíl *Volání API*), pomalá volání
+(> 10 s) v listu `Log_chyb`.
+
+---
+
 ## Přechod na verzi 0.4.3 (kódy zboží nejen EAN, pro už nasazenou verzi 0.4.2)
 
 Web (verze **0.4.3**) se nasadí sám po pushi do `main`. V Apps Scriptu:
@@ -419,8 +439,11 @@ Listy ani sloupce se nemění, setup znovu spouštět není potřeba.
   `OPRAVNENI_OBRAZOVEK` v `web/js/pc.js`). List `Opravneni` doplní setup, matice ve Správě se ukáže sama.
 - Excel v prohlížeči: SheetJS 0.20.3 z `cdn.sheetjs.com` (pevná verze + kontrolní součet), načte se až v řízení.
 - Plánovač: funkce `planovac()` (spouštěč i menu), instalace spouštěče `instalujPlanovac()`.
-- `lokace.dokonci` je idempotentní podle `id_davky`: zpracované dávky si server pamatuje 30 dní ve Script Properties
-  (`davka_<id>`), opakované odeslání vrátí původní výsledek.
+- `lokace.dokonci` (a `zaznam.stav` podle `id_akce`) je idempotentní: řádky v `Kontroly` nesou `id_davky`, výsledek
+  drží 6 h `CacheService`; opakované odeslání vrátí výsledek z cache, nebo ho sestaví z řádků (TextFinder) – nic
+  se nezdvojí. (Do 0.4.4 ve Script Properties – ty uklízí plánovač / setup.)
+- `ping` (bez přihlášení, nečte tabulku) budí server při otevření aplikace; čtecí akce a `login` klient při výpadku
+  sítě jednou zopakuje (`BEZPECNE_OPAKOVAT` ve `web/js/api.js`). Volání > 10 s server zapíše do `Log_chyb`.
 - Čas kontroly z offline fronty se bere z čtečky, nejvýš 2 dny zpět (starší dávka dostane čas přijetí).
 - Neočekávané chyby serveru se zapisují do listu `Log_chyb`.
 - **Diagnostika skenování** na čtečce: v rozcestníku 5× rychle klepni na *verze …* → nahoře se ukáže panel

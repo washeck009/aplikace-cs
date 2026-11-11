@@ -1,6 +1,6 @@
 // Expirace – Moje úkoly (čtečka): úkoly pro mě a pro „kdokoliv“ ve zvoleném podniku, lokace podle trasy,
 // průběh x z y; Začít / pokračovat otevře kontrolu s nabídkou zbývajících lokací.
-import { volej } from '../api.js';
+import { jeBezSite, volej } from '../api.js';
 import { ma } from '../opravneni.js';
 import { cekajiciDavky } from '../fronta.js';
 import { PODNIKY } from '../podniky.js';
@@ -47,7 +47,7 @@ export async function zobrazMojeUkoly(koren, relace) {
     await vykresliSeznam(data, '');
   } catch (e) {
     if (e.kod === 'TOKEN' || !aktualni()) return;
-    await vykresliSeznam(ulozene || { ukoly: [] }, e.kod === 'SIT'
+    await vykresliSeznam(ulozene || { ukoly: [] }, jeBezSite(e)
       ? `Bez signálu – úkoly z ${ulozene ? new Date(ulozene.nacteno).toLocaleTimeString('cs-CZ', { hour: 'numeric', minute: '2-digit' }) : '–'}.`
       : e.message);
   }

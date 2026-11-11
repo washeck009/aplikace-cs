@@ -66,9 +66,13 @@ const ZAMEK_MINUT = 10;
 // Klíč tokenu ve Script Properties = prefix + SHA-256 tokenu (samotný token se neukládá).
 const PREFIX_TOKENU = 'token_';
 
-// Zpracované dávky z čtečky (idempotence): Script Properties `davka_<id>`, drží se 30 dní.
+// Zpracované dávky z čtečky (idempotence): sloupec `id_davky` v listu Kontroly + výsledek krátce v CacheService
+// (`davka_<id>`, 6 h). Do verze 0.4.4 byly ve Script Properties – ty se jen čtou (jeden klíč) a denně uklízejí.
 const PREFIX_DAVKY = 'davka_';
-const DAVKY_DRZET_DNI = 30;
+const CACHE_DAVKY_S = 21600; // max. doba CacheService
+
+// Volání delší než tohle se zapíše do Log_chyb (měření pomalých odpovědí).
+const POMALE_VOLANI_MS = 10000;
 
 // Dávka z offline fronty smí nést čas kontroly nejvýš 2 dny zpět, starší dostane čas přijetí.
 const ZPETNY_ZAPIS_DNI = 2;
@@ -109,7 +113,9 @@ const LISTY = {
   Lokace: ['podnik', 'kod', 'hala', 'rada', 'sloupec', 'nosnik', 'zona', 'aktivni', 'k_overeni'],
   Zaznamy: ['id', 'podnik', 'lokace', 'ean', 'cislo_polozky', 'expirace', 'expirace_text', 'pocet_ks', 'stav',
     'zalozil', 'zalozeno', 'overil', 'overeno', 'zmenil', 'zmeneno', 'poznamka', 'foto_url', 'k_doplneni'],
-  Kontroly: ['id', 'cas', 'uzivatel', 'podnik', 'lokace', 'id_zaznamu', 'akce', 'pocet_ks', 'poznamka', 'id_ukolu', 'zapocteno'],
+  // id_davky = dávka ze čtečky / akce Vydáno-Zlikvidováno, ze které řádek vznikl (opakované odeslání nic nezdvojí).
+  Kontroly: ['id', 'cas', 'uzivatel', 'podnik', 'lokace', 'id_zaznamu', 'akce', 'pocet_ks', 'poznamka', 'id_ukolu', 'zapocteno',
+    'id_davky'],
   // hotove_lokace: lokace úkolu, které už někdo po zadání zkontroloval (přidáno v etapě 3).
   // U zrušeného úkolu je ve splneno/splnil kdy a kdo ho zrušil.
   Ukoly: ['id', 'podnik', 'typ', 'komu', 'lokace', 'polozka', 'termin', 'popis', 'stav', 'zadal', 'zadano', 'splneno', 'splnil',
@@ -131,7 +137,7 @@ const TEXTOVE_SLOUPCE = {
   Polozky: ['ean', 'cislo_polozky'],
   Lokace: ['kod', 'hala', 'rada', 'sloupec', 'nosnik'],
   Zaznamy: ['id', 'lokace', 'ean', 'cislo_polozky', 'expirace_text'],
-  Kontroly: ['id', 'lokace', 'id_zaznamu', 'id_ukolu'],
+  Kontroly: ['id', 'lokace', 'id_zaznamu', 'id_ukolu', 'id_davky'],
   Ukoly: ['id', 'lokace', 'polozka', 'hotove_lokace'],
   Import_stav_lokaci: ['lokace', 'cislo_polozky']
 };

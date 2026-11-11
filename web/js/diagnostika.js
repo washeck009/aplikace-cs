@@ -12,10 +12,12 @@ const UDALOSTI_KLAVESNICE = ['keydown', 'keyup', 'keypress', 'beforeinput', 'inp
 const MAX_UDALOSTI = 30;
 const MAX_FOKUS = 8;
 const MAX_KAMERA = 12;
+const MAX_API = 15;
 
 const udalosti = [];
 const fokus = [];
 const kamera = []; // spuštění kamery, přečtené kódy, „nepřečteno do 10 s“ (motor, rozlišení, kamera)
+const api = []; // poslední volání API: akce, doba v ms, výsledek, pokus (událost cs:api z api.js)
 let panel = null;
 let casovac = null;
 
@@ -48,6 +50,7 @@ window.addEventListener('cs:sken', (e) => pridej(udalosti, MAX_UDALOSTI, {
 window.addEventListener('cs:diag', (e) => pridej(udalosti, MAX_UDALOSTI, { cas: Date.now(), typ: 'POLE', text: e.detail }));
 // Kamera má vlastní oddíl – události klávesnice by ji z posledních 30 záznamů rychle vytlačily.
 window.addEventListener('cs:kamera', (e) => pridej(kamera, MAX_KAMERA, { cas: Date.now(), text: e.detail }));
+window.addEventListener('cs:api', (e) => pridej(api, MAX_API, { cas: Date.now(), ...e.detail }));
 // Odeslat výpis z dialogu kamery (skener.js diagnostiku neimportuje – kruhová závislost).
 window.addEventListener('cs:diag-odeslat', () => odesli());
 ['focusin', 'focusout'].forEach((typ) => document.addEventListener(typ, (e) =>
@@ -118,7 +121,9 @@ function text() {
     + ` · v poli "${s.vPoli}" · fronta [${s.fronta.join(', ')}]\n`
     + `\nUdálosti (posledních ${MAX_UDALOSTI}):\n${radky.join('\n') || '–'}\n`
     + `\nZměny fokusu:\n${fokus.map((f) => `${cas(f.cas)} ${f.typ} ${f.cil}`).join('\n') || '–'}`
-    + `\n\nKamera:\n${kamera.map((k) => `${cas(k.cas)} ${k.text}`).join('\n') || '–'}`;
+    + `\n\nKamera:\n${kamera.map((k) => `${cas(k.cas)} ${k.text}`).join('\n') || '–'}`
+    + `\n\nVolání API (posledních ${MAX_API}, doba v ms):\n${api.map((a) =>
+      `${cas(a.cas)} ${a.akce} ${a.ms} ms ${a.vysledek}${a.pokus > 1 ? ` (pokus ${a.pokus})` : ''}`).join('\n') || '–'}`;
 }
 
 function vykresliRezim() {
@@ -148,6 +153,7 @@ function zobraz() {
       udalosti.length = 0;
       fokus.length = 0;
       kamera.length = 0;
+      api.length = 0;
     });
     panel.querySelector('[data-vypnout]').addEventListener('click', () => {
       ulozZapnuto(false);

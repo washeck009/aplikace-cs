@@ -95,7 +95,8 @@ Duplicitní založení stejného klíče se nepovolí (aplikace nabídne ✓ u e
 
 **Kontroly** (log, nikdy se nemaže): id, cas, uzivatel, podnik, lokace, id_zaznamu, akce
 (`nový` / `potvrzeno` / `změna` / `není na lokaci` / `bez expiračního zboží` / `vydáno` / `zlikvidováno` / `import uzavřel`),
-pocet_ks, poznamka, id_ukolu, zapocteno (TRUE když tato akce byla první dokončená kontrola lokace toho uživatele v daném dni).
+pocet_ks, poznamka, id_ukolu, zapocteno (TRUE když tato akce byla první dokončená kontrola lokace toho uživatele v daném dni),
+id_davky (dávka ze čtečky / akce Vydáno-Zlikvidováno, ze které řádek vznikl – idempotence).
 „Poslední kontrola lokace“ (plánovač, pokrytí) se počítá jen z dokončených kontrol – ne z `import uzavřel` ani
 z Vydáno / Zlikvidováno z obrazovky Blíží se expirace.
 
@@ -210,7 +211,10 @@ a sken). Lokace převzít jen ve formátu lokace (H/P s pomlčkami).
 
 ## 9. Nefunkční požadavky
 - Rychlost: sken → zobrazení lokace do 2 s při běžném signálu; zápis neblokuje další sken.
-- Odolnost: nic se neztratí při výpadku signálu (fronta).
+- Odolnost: nic se neztratí při výpadku signálu (fronta). Opakované odeslání dávky nic nezdvojí – idempotence přes
+  `Kontroly.id_davky` + krátkodobou cache (ne Script Properties, ty mají limit 500 kB).
+- Probouzení serveru: aplikace při otevření pošle `ping`, čtecí volání a přihlášení se při výpadku sítě jednou samy
+  zopakují; přihlášení nečeká na globální zámek. Volání delší než 10 s se zapisují do `Log_chyb`. *(Verze 0.4.5.)*
 - Stopa: každá změna nese kdo a kdy.
 - Čtečky Urovo: Chrome, obrazovka ~5–6", ovládání palcem. PWA instalovatelná na plochu (manifest, ikony, service worker).
 

@@ -39,6 +39,10 @@ administrátor (vlastník projektu). Skladníci **nemají žádné firemní ani 
   **PIN si nastavuje jen sám uživatel** (první přihlášení „Nastav si PIN“, Můj účet → Změnit PIN). Uživatelé se zakládají
   jen se jménem a rolí, reset PINu = smazání PINu. Nikde negeneruj, nezobrazuj ani neposílej PIN jiným lidem
   a triviální PINy (stejné číslice, řady) odmítej na serveru (`overNovyPin_`) i v klientu (`web/js/pin.js`).
+- **Script Properties jen pro malá a krátkodobá data** (tokeny) – limit 500 kB. Nic, co roste s provozem (idempotence
+  dávek, logy), tam nepatří: dávky = `Kontroly.id_davky` + `CacheService`. Přihlášení nesmí číst celé Script Properties
+  ani čekat na globální zámek (zámek jen na zápis chybného pokusu). Nová čtecí akce API patří do `BEZPECNE_OPAKOVAT`
+  ve `web/js/api.js` (automatické opakování při výpadku sítě); zápisy ne – ty opakuje offline fronta.
 - Zápisy do tabulky pod `LockService`. Log `Kontroly` se **nikdy nemaže**, záznamy se jen mění/uzavírají se stopou kdo/kdy.
 - Výpadek signálu: záznamy se ukládají do fronty v IndexedDB a odesílají se na pozadí; fronta musí být vidět.
 - Kód piš jednoduše a čitelně, s krátkými komentáři česky. Žádné frameworky bez důvodu; knihovny jen z CDN s pevnou verzí.

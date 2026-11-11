@@ -1,6 +1,6 @@
 // Expirace – Blíží se expirace (čtečka): záznamy „Na lokaci“ podle zbývajících dní, filtry podle pásma,
 // akce Na lokaci (otevře kontrolu) / Vydáno / Zlikvidováno (přes offline frontu, zapíše se do logu s kým a kdy).
-import { volej } from '../api.js';
+import { jeBezSite, volej } from '../api.js';
 import { ma } from '../opravneni.js';
 import { nactiZaklad, ulozZaklad } from '../db.js';
 import { kratkeDatum, nazevZbozi, pasmo, stitekPasma, zbyvaDni } from '../expirace.js';
@@ -36,7 +36,7 @@ export async function zobrazBliziSe(koren, relace) {
       await ulozZaklad(zaklad);
       if (aktualni()) await vykresli(koren, relace, zaklad, '');
     } catch (e) {
-      if (e.kod !== 'TOKEN' && aktualni()) await vykresli(koren, relace, zaklad, e.kod === 'SIT' ? 'Bez signálu – data uložená v zařízení.' : e.message);
+      if (e.kod !== 'TOKEN' && aktualni()) await vykresli(koren, relace, zaklad, jeBezSite(e) ? 'Bez signálu – data uložená v zařízení.' : e.message);
     }
   }
 }

@@ -15,6 +15,10 @@ const PLANOVAC_MINUTA = 30;
 
 /** Spouští časový spouštěč i menu. Vrátí souhrn po podnicích. */
 function planovac() {
+  // Denní úklid Script Properties (prošlé tokeny, dávky ze starších verzí) – přihlášení je nečte celé.
+  try {
+    uklidVlastnosti_();
+  } catch (e) { console.error('Úklid vlastností', e); }
   const souhrn = sZamkem_(function () {
     const ted = new Date();
     return Object.keys(PODNIKY).map(function (podnik) { return naplanujPodnik_(podnik, ted); });

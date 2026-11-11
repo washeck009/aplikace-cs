@@ -6,7 +6,8 @@ const KLICE = {
   jmeno: 'cs.posledniJmeno',
   podnik: 'cs.podnik',
   dnes: 'cs.dnesZapocteno',
-  ukoly: 'cs.ukoly'
+  ukoly: 'cs.ukoly',
+  uzivatele: 'cs.uzivatele'
 };
 
 function cti(klic) {
@@ -42,6 +43,10 @@ export const smazRelaci = () => pis(KLICE.relace, null);
 
 export const posledniJmeno = () => cti(KLICE.jmeno);
 export const ulozPosledniJmeno = (jmeno) => pis(KLICE.jmeno, jmeno);
+
+/** Seznam uživatelů pro přihlášení [{jmeno, pin_nastaven}] z posledního načtení – ukáže se hned, obnoví na pozadí. */
+export const ulozenySeznamUzivatelu = () => cti(KLICE.uzivatele);
+export const ulozSeznamUzivatelu = (seznam) => pis(KLICE.uzivatele, seznam);
 
 export function zvolenyPodnik() {
   const p = cti(KLICE.podnik);

@@ -1,6 +1,6 @@
 // Offline fronta: fotky a dávky z kontroly lokací se uloží do IndexedDB a odesílají na pozadí.
 // Při výpadku signálu se opakují; ikona v hlavičce ukazuje počet neodeslaných (událost cs:fronta).
-import { volej } from './api.js';
+import { jeBezSite, volej } from './api.js';
 import { frontaPridej, frontaSmaz, frontaUloz, frontaVse, nactiZaklad, ulozZaklad } from './db.js';
 import { polozkaPodleKodu } from './expirace.js';
 import { relace } from './uloziste.js';
@@ -8,7 +8,7 @@ import { aplikujDavku } from './zaznamy.js';
 
 // Chyby, které se samy spraví (signál, přetížený server) – zkouší se znovu s rostoucí prodlevou.
 // Ostatní (např. neplatná data) zůstanou ve frontě s chybou, dokud je uživatel nezahodí.
-const OPAKOVAT = ['SIT', 'SERVER', 'ZANEPRAZDNENO', 'KONFIGURACE'];
+const OPAKOVAT = ['SIT', 'CAS', 'HTTP', 'SERVER', 'ZANEPRAZDNENO', 'KONFIGURACE'];
 const MAX_PRODLEVA = 15 * 60 * 1000;
 
 let bezi = false;
@@ -137,7 +137,8 @@ async function odesli(p) {
         ...p, pokusy, cekaNaPrihlaseni: false, chyba: e.message,
         dalsiPokus: Date.now() + Math.min(MAX_PRODLEVA, 15000 * 2 ** (pokusy - 1))
       }]);
-      return e.kod !== 'SIT' && e.kod !== 'KONFIGURACE';
+      // Bez spojení nemá smysl zkoušet další položky; po chybě serveru ano.
+      return !jeBezSite(e) && e.kod !== 'KONFIGURACE';
     }
     await frontaUloz([{ ...p, trvalaChyba: true, cekaNaPrihlaseni: false, chyba: e.message }]);
     // Fotka, která nejde nahrát, nesmí zablokovat dávku – ta odejde bez ní.
